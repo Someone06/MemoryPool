@@ -1,5 +1,5 @@
 #ifdef NDEBUG
-    #undef NDEBUG
+#undef NDEBUG
 #endif
 
 #include <assert.h>
@@ -26,15 +26,15 @@ void toggle_marked(Node *const node) {
     node->ptrCount ^= ((size_t) 1) << MARKED_BIT_OFFSET;
 }
 
-size_t get_ptr_count(Node * const node) {
-   return node->ptrCount & ((((size_t) 1) << MARKED_BIT_OFFSET) - 1);
+size_t get_ptr_count(Node *const node) {
+    return node->ptrCount & ((((size_t) 1) << MARKED_BIT_OFFSET) - 1);
 }
 
-void inc_ptr_count(Node * const node) {
-   ++node->ptrCount;
+void inc_ptr_count(Node *const node) {
+    ++node->ptrCount;
 }
 
-void reset_ptr_count(Node * const node) {
+void reset_ptr_count(Node *const node) {
     node->ptrCount &= ((size_t) 1) << MARKED_BIT_OFFSET;
 }
 
@@ -47,7 +47,7 @@ Node *new_node(void *const data, const size_t neighbours) {
 }
 
 void dfs(Node *current, void (*const for_each)(void *)) {
-    if(current == NULL) {
+    if (current == NULL) {
         return;
     }
 
@@ -70,7 +70,7 @@ void dfs(Node *current, void (*const for_each)(void *)) {
                 previous = current;
                 current = next;
             } else {
-ä               inc_ptr_count(current);
+                ä inc_ptr_count(current);
             }
         } else {
             reset_ptr_count(current);
@@ -86,7 +86,7 @@ void dfs(Node *current, void (*const for_each)(void *)) {
 }
 
 void reduce_to_dfs_tree(Node *current) {
-     if(current == NULL) {
+    if (current == NULL) {
         return;
     }
 
@@ -120,7 +120,7 @@ void reduce_to_dfs_tree(Node *current) {
 }
 
 void free_nodes(Node *current, void (*const free_data)(void *)) {
-    if(current == NULL) {
+    if (current == NULL) {
         return;
     }
 
@@ -139,7 +139,7 @@ void free_nodes(Node *current, void (*const free_data)(void *)) {
                 inc_ptr_count(current);
             }
         } else {
-            if(free_data != NULL) {
+            if (free_data != NULL) {
                 free_data(current->data);
             }
             free(current);
@@ -152,12 +152,12 @@ void free_nodes(Node *current, void (*const free_data)(void *)) {
     }
 }
 
-int * data = NULL;
+int *data = NULL;
 size_t data_size = 0;
 
 void init_out(const size_t size) {
-   data = calloc(size, sizeof(int));
-   data_size = size;
+    data = calloc(size, sizeof(int));
+    data_size = size;
 }
 
 void free_out() {
@@ -166,23 +166,23 @@ void free_out() {
     data_size = 0;
 }
 
-void inc_out(void * value) {
-   const int index = * (int*) value;
-   assert(index >= 0 && index < data_size);
-   ++data[index];
+void inc_out(void *value) {
+    const int index = *(int *) value;
+    assert(index >= 0 && index < data_size);
+    ++data[index];
 }
 
 bool all_same(const int value) {
-    for(int i = 0; i < data_size; ++i) {
-       if(data[i] != value) {
-           return false;
-       }
+    for (int i = 0; i < data_size; ++i) {
+        if (data[i] != value) {
+            return false;
+        }
     }
 
     return true;
 }
 
-void test_nodes_inc_by_one(Node * root, size_t count) {
+void test_nodes_inc_by_one(Node *root, size_t count) {
     init_out(count);
     dfs(root, inc_out);
     assert(all_same(1));
@@ -192,9 +192,9 @@ void test_nodes_inc_by_one(Node * root, size_t count) {
 
 void test_triangle() {
     int id[3] = {0, 1, 2};
-    Node * a = new_node(&id[0], 1);
-    Node * b = new_node(&id[1], 1);
-    Node * c = new_node(&id[2], 1);
+    Node *a = new_node(&id[0], 1);
+    Node *b = new_node(&id[1], 1);
+    Node *c = new_node(&id[2], 1);
     a->neighbours[0] = b;
     b->neighbours[0] = c;
     c->neighbours[0] = a;
@@ -204,9 +204,9 @@ void test_triangle() {
 
 void test_list() {
     int id[3] = {0, 1, 2};
-    Node * a = new_node(&id[0], 1);
-    Node * b = new_node(&id[1], 1);
-    Node * c = new_node(&id[2], 0);
+    Node *a = new_node(&id[0], 1);
+    Node *b = new_node(&id[1], 1);
+    Node *c = new_node(&id[2], 0);
     a->neighbours[0] = b;
     b->neighbours[0] = c;
 
