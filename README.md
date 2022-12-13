@@ -2,11 +2,11 @@
 This is a simple toy project that demonstrates how to do a depth first search
 (DFS) on a connected, directed graph while storing the stack needed for the DFS
 inside the nodes of the graph.
-This usually requires a `size_t pointerCounter` that stores which neighbour to visit
-next and parent pointer in each graph node.
+This usually requires a `size_t pointerCounter` that stores which neighbour to
+visit next as well as a `Node *parentPointer` in each node.
 By using pointer reversal, the extra storage for the parent pointer is not
 needed.
-To mark nodes that have already been visited an additional bit is needed. 
+To mark nodes that have already been visited an additional bit is required. 
 The highest bit of the `pointerCounter` is used to store that information.
 So the overhead of doing a DFS, is a `size_t` per node, plus a constant amount
 of stack space.
