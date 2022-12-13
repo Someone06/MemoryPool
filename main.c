@@ -70,7 +70,7 @@ void dfs(Node *current, void (*const for_each)(void *)) {
                 previous = current;
                 current = next;
             } else {
-                ä inc_ptr_count(current);
+                inc_ptr_count(current);
             }
         } else {
             reset_ptr_count(current);
