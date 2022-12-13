@@ -37,7 +37,9 @@ void dfs(Node * current, void (* const for_each)(void*)) {
       if(current->ptrCount < current->neighbour_count) {
           next = current->neighbours[current->ptrCount];
           if(next != NULL && is_marked(next) != marking) {
-              for_each(next->data);
+              if(for_each != NULL) {
+                  for_each(next->data);
+              }
               toggle_marked(next);
               current->neighbours[current->ptrCount] = previous;
               previous = current;
