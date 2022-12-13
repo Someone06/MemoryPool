@@ -60,6 +60,64 @@ void dfs(Node * current, void (* const for_each)(void*)) {
    }
 }
 
+void reduce_to_dfs_tree(Node * current) {
+   Node * previous = NULL, * next = NULL;
+   const bool marking = is_marked(current);
+
+   while(current != NULL) {
+      if(current->ptrCount < current->neighbour_count) {
+          next = current->neighbours[current->ptrCount];
+          if(next != NULL && is_marked(next) != marking) {
+              toggle_marked(next);
+              current->neighbours[current->ptrCount] = previous;
+              previous = current;
+              current = next;
+          } else {
+              current->neighbours[current->ptrCount] = NULL;
+              ++current->ptrCount;
+          }
+      } else {
+          current->ptrCount = 0;
+          next = current;
+          current = previous;
+          if(current != NULL) {
+              previous = current->neighbours[current->ptrCount];
+              current->neighbours[current->ptrCount] = next;
+              ++current->ptrCount;
+          }
+      }
+   }
+}
+
+void free_nodes(Node * current, void (*const free_data)(void*)) {
+   reduce_to_dfs_tree(current);
+
+   Node * previous = NULL, * next = NULL;
+   while(current != NULL) {
+      if(current->ptrCount < current->neighbour_count) {
+          next = current->neighbours[current->ptrCount];
+          if(next != NULL) {
+              current->neighbours[current->ptrCount] = previous;
+              previous = current;
+              current = next;
+          } else {
+              ++current->ptrCount;
+          }
+      } else {
+          if(free_data != NULL) {
+              free_data(current->data);
+          }
+
+          free(current);
+          current = previous;
+          if(current != NULL) {
+              previous = current->neighbours[current->ptrCount];
+              current->neighbours[current->ptrCount] = next;
+              ++current->ptrCount;
+          }
+      }
+   }
+}
 
 
 int main() {
