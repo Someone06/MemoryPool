@@ -1,6 +1,11 @@
+#ifdef NDEBUG
+    #undef NDEBUG
+#endif
+
 #include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 
 struct Node {
     void *data;
@@ -147,7 +152,68 @@ void free_nodes(Node *current, void (*const free_data)(void *)) {
     }
 }
 
+int * data = NULL;
+size_t data_size = 0;
+
+void init_out(const size_t size) {
+   data = calloc(size, sizeof(int));
+   data_size = size;
+}
+
+void free_out() {
+    free(data);
+    data = NULL;
+    data_size = 0;
+}
+
+void inc_out(void * value) {
+   const int index = * (int*) value;
+   assert(index >= 0 && index < data_size);
+   ++data[index];
+}
+
+bool all_same(const int value) {
+    for(int i = 0; i < data_size; ++i) {
+       if(data[i] != value) {
+           return false;
+       }
+    }
+
+    return true;
+}
+
+void test_nodes_inc_by_one(Node * root, size_t count) {
+    init_out(count);
+    dfs(root, inc_out);
+    assert(all_same(1));
+    free_nodes(root, NULL);
+    free_out();
+}
+
+void test_triangle() {
+    int id[3] = {0, 1, 2};
+    Node * a = new_node(&id[0], 1);
+    Node * b = new_node(&id[1], 1);
+    Node * c = new_node(&id[2], 1);
+    a->neighbours[0] = b;
+    b->neighbours[0] = c;
+    c->neighbours[0] = a;
+
+    test_nodes_inc_by_one(a, 3);
+}
+
+void test_list() {
+    int id[3] = {0, 1, 2};
+    Node * a = new_node(&id[0], 1);
+    Node * b = new_node(&id[1], 1);
+    Node * c = new_node(&id[2], 0);
+    a->neighbours[0] = b;
+    b->neighbours[0] = c;
+
+    test_nodes_inc_by_one(a, 3);
+}
 
 int main() {
-    return 0;
+    test_list();
+    test_triangle();
 }
