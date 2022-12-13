@@ -190,6 +190,17 @@ void test_nodes_inc_by_one(Node *root, size_t count) {
     free_out();
 }
 
+void test_list() {
+    int id[3] = {0, 1, 2};
+    Node *a = new_node(&id[0], 1);
+    Node *b = new_node(&id[1], 1);
+    Node *c = new_node(&id[2], 0);
+    a->neighbours[0] = b;
+    b->neighbours[0] = c;
+
+    test_nodes_inc_by_one(a, 3);
+}
+
 void test_triangle() {
     int id[3] = {0, 1, 2};
     Node *a = new_node(&id[0], 1);
@@ -202,18 +213,65 @@ void test_triangle() {
     test_nodes_inc_by_one(a, 3);
 }
 
-void test_list() {
-    int id[3] = {0, 1, 2};
-    Node *a = new_node(&id[0], 1);
-    Node *b = new_node(&id[1], 1);
-    Node *c = new_node(&id[2], 0);
+void test_windmill() {
+    int id[8] = {0, 1, 2, 3, 4, 5, 6, 7};
+    Node *a = new_node(&id[0], 2);
+    Node *b = new_node(&id[1], 2);
+    Node *c = new_node(&id[2], 2);
+    Node *d = new_node(&id[3], 2);
+
+    Node *e = new_node(&id[4], 0);
+    Node *f = new_node(&id[5], 0);
+    Node *g = new_node(&id[6], 0);
+    Node *h = new_node(&id[7], 0);
+
     a->neighbours[0] = b;
     b->neighbours[0] = c;
+    c->neighbours[0] = d;
+    d->neighbours[0] = a;
 
-    test_nodes_inc_by_one(a, 3);
+    a->neighbours[1] = e;
+    b->neighbours[1] = f;
+    c->neighbours[1] = g;
+    d->neighbours[1] = h;
+
+    test_nodes_inc_by_one(a, 8);
+}
+
+void test_8() {
+    int id[6] = {0, 1, 2, 3, 4, 5};
+    Node *a = new_node(&id[0], 2);
+    Node *b = new_node(&id[1], 2);
+    Node *c = new_node(&id[2], 2);
+    Node *d = new_node(&id[3], 2);
+    Node *e = new_node(&id[4], 2);
+    Node *f = new_node(&id[5], 2);
+
+    a->neighbours[0] = b;
+    b->neighbours[0] = c;
+    c->neighbours[0] = d;
+    d->neighbours[0] = a;
+
+    b->neighbours[1] = e;
+    e->neighbours[0] = f;
+    f->neighbours[0] = c;
+    c->neighbours[1] = b;
+
+    test_nodes_inc_by_one(b, 6);
+}
+
+void test_self_loop() {
+    int id[1] = {0};
+    Node *a = new_node(&id[0], 1);
+    a->neighbours[0] = a;
+
+    test_nodes_inc_by_one(a, 1);
 }
 
 int main() {
     test_list();
     test_triangle();
+    test_windmill();
+    test_8();
+    test_self_loop();
 }
