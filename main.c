@@ -1,11 +1,38 @@
 #ifdef NDEBUG
-#undef NDEBUG
+    #undef NDEBUG
 #endif
 
 #include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+
+// Allow for replacing malloc and free operations, which is need for custom
+// allocators.
+static void *(*custom_malloc)(size_t) = malloc;
+static void (*custom_free)(void *) = free;
+
+void * MALLOC(const size_t size) {
+    void * const p = custom_malloc(size);
+    return p;
+}
+
+size_t align_8(const size_t size) {
+    return (size + 7) & ~7;
+}
+
+void * CALLOC(const size_t member_count, const size_t member_size) {
+    const size_t nb = align_8(member_size) * member_count;
+    void * const p = MALLOC(nb);
+    if(p != NULL) {
+        memset(p, 0, nb);
+    }
+    return p;
+}
+
+void FREE(void * const p) {
+    custom_free(p);
+}
 
 struct Node {
     void *data;
@@ -40,9 +67,12 @@ void reset_ptr_count(Node *const node) {
 
 Node *new_node(void *const data, const size_t neighbours) {
     assert(!(neighbours >> MARKED_BIT_OFFSET));
-    Node *const node = calloc(1, sizeof(Node) + sizeof(Node *) * neighbours);
-    node->data = data;
-    node->neighbour_count = neighbours;
+    Node *const node = CALLOC(1, sizeof(Node) + sizeof(Node *) * neighbours);
+    if(node != NULL) {
+        node->data = data;
+        node->neighbour_count = neighbours;
+    }
+
     return node;
 }
 
@@ -142,7 +172,7 @@ void free_nodes(Node *current, void (*const free_data)(void *)) {
             if (free_data != NULL) {
                 free_data(current->data);
             }
-            free(current);
+            FREE(current);
             current = previous;
             if (current != NULL) {
                 previous = current->neighbours[get_ptr_count(current)];
@@ -156,12 +186,12 @@ int *data = NULL;
 size_t data_size = 0;
 
 void init_out(const size_t size) {
-    data = calloc(size, sizeof(int));
+    data = CALLOC(size, sizeof(int));
     data_size = size;
 }
 
 void free_out() {
-    free(data);
+    FREE(data);
     data = NULL;
     data_size = 0;
 }
