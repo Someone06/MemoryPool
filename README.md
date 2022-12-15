@@ -16,3 +16,6 @@ amount of memory two DFS traversals are required.
 The first traversal removes edges such that the modified graph is a (spanning-)
 tree.
 The second traversal frees the memory.
+
+# License
+Licensed under the terms of the Apache 2.0 license. See [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
