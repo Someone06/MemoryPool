@@ -76,6 +76,10 @@ Node *new_node(void *const data, const size_t neighbours) {
     return node;
 }
 
+/*
+ * Perform a Depth-First Search starting at the given root node and apply the
+ * given for_each function, to the data of each node. for_each can be NULL.
+ */
 void dfs(Node *current, void (*const for_each)(void *)) {
     if (current == NULL) {
         return;
@@ -115,6 +119,9 @@ void dfs(Node *current, void (*const for_each)(void *)) {
     }
 }
 
+/*
+ * Removes edges from the graph, s.t. the remaining graph is a tree.
+ */
 void reduce_to_dfs_tree(Node *current) {
     if (current == NULL) {
         return;
@@ -149,6 +156,10 @@ void reduce_to_dfs_tree(Node *current) {
     }
 }
 
+/*
+ * Free all nodes of the graph after applying the free_data function to the data
+ * of each node. free_data can be NULL.
+ */
 void free_nodes(Node *current, void (*const free_data)(void *)) {
     if (current == NULL) {
         return;
