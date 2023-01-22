@@ -211,6 +211,38 @@ void memoryPool_free(MemoryPool *const memoryPool, void (*free_data)(void *)) {
     memset(memoryPool, 0, sizeof(MemoryPool));
 }
 
+/*
+ * Requires that  `data size + sizeof(void*) * neighbours < 1ULL << 16`.
+ */
+MemoryNode *memoryPool_alloc(MemoryPool *const memoryPool, const size_t data_size, const size_t neighbours) {
+    const size_t memoryNode_size = sizeof(void *) * (neighbours == 0 ? 1 : neighbours);
+    const size_t total_size = memoryNode_size + data_size;
+    assert(total_size < 1ULL << 16);
+
+    MemoryPoolNode *head = memoryPool->head;
+    while (head && (!memoryPoolNode_is_free(head) || memoryPoolNode_get_free_space(head) < total_size)) {
+        head = memoryPoolNode_get_next(head);
+    }
+
+    if (!head)
+        return NULL;
+
+    memoryPoolNode_set_is_free(head, false);
+    void *const space = memoryPoolNode_get_data(head);
+    MemoryNode *const memoryNode = memoryNode_new(space, neighbours);
+
+    const size_t total_space = memoryPoolNode_get_free_space(head);
+    const size_t remaining_space = total_space - total_size;
+    if (remaining_space > sizeof(MemoryPoolNode)) {
+        void *const location = (char *) space + total_size;
+        MemoryPoolNode *next = memoryPoolNode_new(location, memoryPoolNode_get_next(head), remaining_space - sizeof(MemoryPoolNode), true);
+        memoryPoolNode_set_next(head, next);
+    }
+
+
+    return memoryNode;
+}
+
 
 /*
 
