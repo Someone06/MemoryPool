@@ -243,6 +243,20 @@ MemoryNode *memoryPool_alloc(MemoryPool *const memoryPool, const size_t data_siz
     return memoryNode;
 }
 
+bool memoryPool_add_root_node(MemoryPool * const memoryPool, MemoryNode * const memoryNode) {
+       if(memoryPool->rootSetSize == memoryPool->rootSetCapacity) {
+            MemoryNode * newSet = REALLOC(memoryPool->rootSet, memoryPool->rootSetCapacity, memoryPool->rootSetCapacity * 2);
+            if(!newSet)
+                return false;
+
+            memoryPool->rootSet = newSet;
+            memoryPool->rootSetCapacity += 2;
+       }
+
+       memoryPool->rootSet[memoryPool->rootSetSize++] = memoryNode;
+       return true;
+}
+
 
 /*
 

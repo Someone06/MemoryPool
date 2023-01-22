@@ -8,5 +8,6 @@ extern void (*custom_free)(void *);
 
 void* MALLOC(size_t size);
 void* CALLOC(size_t member_count, size_t member_size);
+void* REALLOC(void * ptr, size_t old_size, size_t new_size);
 void FREE(void* p);
 #endif

@@ -26,3 +26,23 @@ void *CALLOC(const size_t member_count, const size_t member_size) {
 void FREE(void *const p) {
     custom_free(p);
 }
+
+void* REALLOC(void * const ptr, const size_t old_size, const size_t new_size) {
+    if(!ptr) {
+        return MALLOC(new_size);
+    }
+
+    if(!new_size) {
+        FREE(ptr);
+        return NULL;
+    }
+
+    void * p = MALLOC(new_size);
+    if(p)  {
+        const size_t sz = old_size <= new_size ? old_size : new_size;
+        memcpy(p, ptr, sz);
+        FREE(ptr);
+    }
+
+    return p;
+}
