@@ -156,7 +156,7 @@ MemoryPool memory_pool_new(const size_t pool_size) {
 
 
     void *const space = MALLOC(pool_size);
-    void *const rootSet = MALLOC(DEFAULT_ROOT_SET_SIZE * sizeof(MemoryNode*));
+    void *const rootSet = MALLOC(DEFAULT_ROOT_SET_SIZE * sizeof(MemoryNode *));
 
     if (!space || !rootSet) {
         FREE(space);
@@ -245,7 +245,7 @@ MemoryNode *memoryPool_alloc(MemoryPool *const memoryPool, const size_t data_siz
 
 bool memoryPool_add_root_node(MemoryPool *const memoryPool, MemoryNode *const memoryNode) {
     if (memoryPool->rootSetSize == memoryPool->rootSetCapacity) {
-        MemoryNode ** newSet = REALLOC(memoryPool->rootSet, memoryPool->rootSetCapacity, memoryPool->rootSetCapacity * sizeof(MemoryNode*) * 2);
+        MemoryNode **newSet = REALLOC(memoryPool->rootSet, memoryPool->rootSetCapacity, memoryPool->rootSetCapacity * sizeof(MemoryNode *) * 2);
         if (!newSet)
             return false;
 
