@@ -257,7 +257,7 @@ bool memoryPool_add_root_node(MemoryPool *const memoryPool, MemoryNode *const me
     return true;
 }
 
-void dfs(MemoryNode *current, void (*const for_each)(void *)) {
+static void dfs(MemoryNode *current, void (*const for_each)(void *)) {
 
 #define BACK_OFF                                                                \
     while (true) {                                                              \
@@ -354,6 +354,44 @@ void dfs(MemoryNode *current, void (*const for_each)(void *)) {
 
 #undef FORWARD
 #undef BACK_OFF
+}
+
+static void memoryPool_gc_mark(MemoryPool *const memoryPool) {
+    const size_t rootSetSize = memoryPool->rootSetSize;
+    for (int i = 0; i < rootSetSize; ++i)
+        dfs(memoryPool->rootSet[i], NULL);
+}
+
+typedef void (*free_fn)(void *);
+
+static void memoryPool_gc_sweep(MemoryPool *const memoryPool, free_fn f) {
+    MemoryPoolNode *current = memoryPool->head;
+    while (current) {
+        if (memoryPoolNode_is_free(current))
+            goto next;
+
+        MemoryNode *memoryNode = memoryPoolNode_get_data(current);
+        const bool is_marked = memoryNode_is_marked(memoryNode);
+        if (is_marked) {
+            memoryNode_set_is_marked(memoryNode, false);
+            goto next;
+        }
+
+        void *data = memoryNode_get_data(memoryNode);
+        if (f)
+            f(data);
+
+        memoryPoolNode_set_is_free(current, true);
+        goto next;
+
+    next:
+        current = memoryPoolNode_get_next(current);
+    }
+}
+
+void memoryPool_gc_mark_and_sweep(MemoryPool *const memoryPool, free_fn f) {
+    memoryPool_gc_mark(memoryPool);
+    memoryPool_gc_sweep(memoryPool, f);
 }
 
 /*
