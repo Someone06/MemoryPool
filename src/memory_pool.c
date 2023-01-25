@@ -1,33 +1,15 @@
-#ifdef NDEBUG
-#undef NDEBUG
-#endif
-
 #include <assert.h>
 #include <string.h>
 
-#include "src/memory.h"
-#include "src/pointer_bit_hacks.h"
+#include "memory.h"
+#include "memory_pool.h"
+#include "pointer_bit_hacks.h"
 
-/*
- * Assumes a 64-bit pointer type, where the top most 16 bits are 0 and the
- * lowest bit is 0.
- */
-typedef struct MemoryPoolNode {
-    /*
-     * High 16 bits denote the size of the memory this node governs.
-     * Lowest bit denotes whether the space has been allocated:
-     *     0 means allocated, 1 means free.
-     *
-     *  Unused bits are the second and third-lowest bit, as well as bit 47.
-     */
-    struct MemoryPoolNode *next;
-} MemoryPoolNode;
-
+// ---------- Memory Pool Node ----------
 static MemoryPoolNode *memoryPoolNode_new(void *const location, MemoryPoolNode *const next, const uint16_t size, const bool is_free) {
     assert(sizeof(MemoryPoolNode *) == 8);
     assert(extract_top_bits(location) == 0);
     assert(extract_lowest_bit(location) == 0);
-
 
     MemoryPoolNode *const n = set_lowest_bit(set_top_bits(next, size), is_free);
     MemoryPoolNode *const node = location;
@@ -66,12 +48,8 @@ static void *memoryPoolNode_get_data(MemoryPoolNode const *const memoryPoolNode)
     return (char *) memoryPoolNode + sizeof(MemoryPoolNode);
 }
 
-static const size_t MemoryPoolNode_MaxMemoryPerNode = (1ULL << 16) - 1;
 
-typedef struct MemoryNode {
-    struct MemoryNode *neighbours;
-} MemoryNode;
-
+// ---------- Memory Node ----------
 static MemoryNode *memoryNode_new(void *location, const uint16_t neighbours) {
     assert(~neighbours);
 
@@ -79,11 +57,6 @@ static MemoryNode *memoryNode_new(void *location, const uint16_t neighbours) {
     MemoryNode *const node = location;
     node->neighbours = set_top_bits(NULL, neighbours);
     return node;
-}
-
-uint16_t memoryNode_get_neighbour_count(MemoryNode const *const memoryNode) {
-    MemoryNode *const neighbours = memoryNode->neighbours;
-    return extract_top_bits(neighbours);
 }
 
 static bool memoryNode_is_marked(MemoryNode const *const memoryNode) {
@@ -99,27 +72,6 @@ static void memoryNode_set_is_marked(MemoryNode *const memoryNode, const bool is
 static void **memoryNode_ptr_to_neighbour_ptr(MemoryNode const *const memoryNode, const uint16_t index) {
     assert(index <= memoryNode_get_neighbour_count(memoryNode) == 0 ? 1 : memoryNode_get_neighbour_count(memoryNode));
     return (void **) ((uintptr_t) memoryNode + sizeof(void *) * index);
-}
-
-void *memoryNode_get_data(MemoryNode const *const memoryNode) {
-    uint16_t size = memoryNode_get_neighbour_count(memoryNode);
-    if (size == 0) size = 1;
-
-    return memoryNode_ptr_to_neighbour_ptr(memoryNode, size);
-}
-
-
-MemoryNode *memoryNode_getNeighbour(MemoryNode const *const memoryNode, const uint16_t index) {
-    void *const ptr = *memoryNode_ptr_to_neighbour_ptr(memoryNode, index);
-    return extract_ptr_bits(ptr);
-}
-
-void memoryNode_setNeighbour(MemoryNode *const memoryNode, MemoryNode const *const neighbour, const uint16_t index) {
-    void **const ptr = memoryNode_ptr_to_neighbour_ptr(memoryNode, index);
-    const uint16_t top = extract_top_bits(*ptr);
-    const bool low_bit = extract_lowest_bit(*ptr);
-    void *const decorated = set_lowest_bit(set_top_bits(neighbour, top), low_bit);
-    *ptr = decorated;
 }
 
 static uint16_t memoryNode_get_counter(MemoryNode const *const memoryNode) {
@@ -148,16 +100,35 @@ static void memoryNode_reset_counter(MemoryNode *const memoryNode) {
     *second = set_top_bits(*second, 0);
 }
 
-typedef struct {
-    void *space;
-    MemoryPoolNode *head;
-    MemoryNode **rootSet;
-    size_t rootSetSize;
-    size_t rootSetCapacity;
-} MemoryPool;
+uint16_t memoryNode_get_neighbour_count(MemoryNode const *const memoryNode) {
+    MemoryNode *const neighbours = memoryNode->neighbours;
+    return extract_top_bits(neighbours);
+}
 
+MemoryNode *memoryNode_getNeighbour(MemoryNode const *const memoryNode, const uint16_t index) {
+    void *const ptr = *memoryNode_ptr_to_neighbour_ptr(memoryNode, index);
+    return extract_ptr_bits(ptr);
+}
+
+void *memoryNode_get_data(MemoryNode const *const memoryNode) {
+    uint16_t size = memoryNode_get_neighbour_count(memoryNode);
+    if (size == 0) size = 1;
+
+    return memoryNode_ptr_to_neighbour_ptr(memoryNode, size);
+}
+
+void memoryNode_setNeighbour(MemoryNode *const memoryNode, MemoryNode const *const neighbour, const uint16_t index) {
+    void **const ptr = memoryNode_ptr_to_neighbour_ptr(memoryNode, index);
+    const uint16_t top = extract_top_bits(*ptr);
+    const bool low_bit = extract_lowest_bit(*ptr);
+    void *const decorated = set_lowest_bit(set_top_bits(neighbour, top), low_bit);
+    *ptr = decorated;
+}
+
+
+// ---------- Memory Pool ----------
 static const size_t DEFAULT_ROOT_SET_SIZE = 8;
-
+static const size_t MemoryPoolNode_MaxMemoryPerNode = (1ULL << 16) - 1;
 
 MemoryPool memory_pool_new(const size_t pool_size) {
     assert(pool_size >= sizeof(MemoryPoolNode));
@@ -219,9 +190,6 @@ void memoryPool_free(MemoryPool *const memoryPool, void (*free_data)(void *)) {
     memset(memoryPool, 0, sizeof(MemoryPool));
 }
 
-/*
- * Requires that  `data size + sizeof(void*) * neighbours < 1ULL << 16`.
- */
 MemoryNode *memoryPool_alloc(MemoryPool *const memoryPool, const size_t data_size, const size_t neighbours) {
     const size_t memoryNode_size = sizeof(MemoryNode *) * (neighbours == 0 ? 1 : neighbours);
     const size_t total_size = memoryNode_size + data_size;
@@ -370,7 +338,6 @@ static void memoryPool_gc_mark(MemoryPool *const memoryPool) {
         dfs(memoryPool->rootSet[i], NULL);
 }
 
-typedef void (*free_fn)(void *);
 
 static void memoryPool_gc_sweep(MemoryPool *const memoryPool, free_fn f) {
     MemoryPoolNode *current = memoryPool->head;
@@ -400,99 +367,4 @@ static void memoryPool_gc_sweep(MemoryPool *const memoryPool, free_fn f) {
 void memoryPool_gc_mark_and_sweep(MemoryPool *const memoryPool, free_fn f) {
     memoryPool_gc_mark(memoryPool);
     memoryPool_gc_sweep(memoryPool, f);
-}
-
-
-const size_t DEFAULT_POOL_SIZE = 1ULL << 10;
-
-void test_alloc_pool() {
-    MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE);
-    memoryPool_free(&pool, NULL);
-}
-
-void test_alloc_pool_2() {
-    MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE - 1);
-    memoryPool_free(&pool, NULL);
-}
-
-void test_alloc_node() {
-    MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE);
-    MemoryNode *const node = memoryPool_alloc(&pool, sizeof(uint64_t), 0);
-    int *const data = memoryNode_get_data(node);
-    *data = 42;
-    memoryPool_free(&pool, NULL);
-}
-
-void test_alloc_multiple() {
-    MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE);
-
-    MemoryNode *const node = memoryPool_alloc(&pool, sizeof(uint64_t), 0);
-    int *const data = memoryNode_get_data(node);
-    *data = 42;
-
-    MemoryNode *const node2 = memoryPool_alloc(&pool, sizeof(uint64_t), 0);
-    int *const data2 = memoryNode_get_data(node2);
-    *data2 = 36;
-
-    MemoryNode *const node3 = memoryPool_alloc(&pool, sizeof(uint64_t), 0);
-    assert(*data == 42);
-    assert(*data2 == 36);
-
-    memoryPool_free(&pool, NULL);
-}
-
-void test_add_to_root_set() {
-    MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE);
-    MemoryNode *const node = memoryPool_alloc(&pool, sizeof(uint64_t), 0);
-    int *const data = memoryNode_get_data(node);
-    *data = 42;
-    memoryPool_add_root_node(&pool, node);
-    assert(*data == 42);
-    memoryPool_free(&pool, NULL);
-}
-
-void test_set_neighbour() {
-    MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE);
-
-    MemoryNode *const node = memoryPool_alloc(&pool, sizeof(uint64_t), 1);
-    int *const data = memoryNode_get_data(node);
-    *data = 42;
-
-    MemoryNode *const node2 = memoryPool_alloc(&pool, sizeof(uint64_t), 2);
-    int *const data2 = memoryNode_get_data(node2);
-    *data2 = 36;
-    memoryNode_setNeighbour(node, node2, 0);
-
-    MemoryNode *const node3 = memoryPool_alloc(&pool, sizeof(uint64_t), 2);
-    int *const data3 = memoryNode_get_data(node3);
-    *data3 = 1337;
-    memoryNode_setNeighbour(node2, node3, 1);
-
-    assert(memoryNode_get_neighbour_count(node) == 1);
-    assert(memoryNode_get_neighbour_count(node2) == 2);
-    assert(memoryNode_get_neighbour_count(node3) == 2);
-
-    assert(memoryNode_getNeighbour(node, 0) == node2);
-    assert(memoryNode_getNeighbour(node2, 0) == NULL);
-    assert(memoryNode_getNeighbour(node2, 1) == node3);
-
-    assert(memoryNode_get_counter(node2) == 0);
-
-    assert(!memoryNode_is_marked(node));
-    assert(!memoryNode_is_marked(node2));
-    assert(!memoryNode_is_marked(node3));
-
-    assert(*data == 42);
-    assert(*data2 == 36);
-    assert(*data3 == 1337);
-    memoryPool_free(&pool, NULL);
-}
-
-int main() {
-    test_alloc_pool();
-    test_alloc_pool_2();
-    test_alloc_node();
-    test_alloc_multiple();
-    test_add_to_root_set();
-    test_set_neighbour();
 }
