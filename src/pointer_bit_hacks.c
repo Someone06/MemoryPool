@@ -30,5 +30,5 @@ void* set_lowest_bit(void const * const ptr, const bool lowest_bit) {
 }
 
 void* extract_ptr_bits(void const * const ptr) {
-    return mask_lowest_bit(mask_lowest_bit(ptr));
+    return mask_lowest_bit(mask_top_bits(ptr));
 }

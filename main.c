@@ -36,25 +36,30 @@ static MemoryPoolNode *memoryPoolNode_new(void *const location, MemoryPoolNode *
 }
 
 static MemoryPoolNode *memoryPoolNode_get_next(MemoryPoolNode const *const memoryPoolNode) {
-    return extract_ptr_bits(memoryPoolNode->next);
+    MemoryPoolNode *const node = memoryPoolNode->next;
+    return extract_ptr_bits(node);
 }
 
 static void memoryPoolNode_set_next(MemoryPoolNode *const memoryPoolNode, MemoryPoolNode const *const next) {
-    const uint16_t size = extract_top_bits(memoryPoolNode->next);
-    const bool is_free = extract_lowest_bit(memoryPoolNode->next);
+    MemoryPoolNode *const node = memoryPoolNode->next;
+    const uint16_t size = extract_top_bits(node);
+    const bool is_free = extract_lowest_bit(node);
     memoryPoolNode->next = set_lowest_bit(set_top_bits(next, size), is_free);
 }
 
 static uint16_t memoryPoolNode_get_free_space(MemoryPoolNode const *const memoryPoolNode) {
-    return extract_top_bits(memoryPoolNode);
+    MemoryPoolNode *const node = memoryPoolNode->next;
+    return extract_top_bits(node);
 }
 
 static bool memoryPoolNode_is_free(MemoryPoolNode const *const memoryPoolNode) {
-    return extract_lowest_bit(memoryPoolNode->next);
+    MemoryPoolNode *const node = memoryPoolNode->next;
+    return extract_lowest_bit(node);
 }
 
 static void memoryPoolNode_set_is_free(MemoryPoolNode *const memoryPoolNode, const bool is_free) {
-    memoryPoolNode->next = set_lowest_bit(memoryPoolNode->next, is_free);
+    MemoryPoolNode *const node = memoryPoolNode->next;
+    memoryPoolNode->next = set_lowest_bit(node, is_free);
 }
 
 static void *memoryPoolNode_get_data(MemoryPoolNode const *const memoryPoolNode) {
@@ -77,19 +82,22 @@ static MemoryNode *memoryNode_new(void *location, const uint16_t neighbours) {
 }
 
 uint16_t memoryNode_get_neighbour_count(MemoryNode const *const memoryNode) {
-    return extract_top_bits(memoryNode->neighbours);
+    MemoryNode *const neighbours = memoryNode->neighbours;
+    return extract_top_bits(neighbours);
 }
 
 static bool memoryNode_is_marked(MemoryNode const *const memoryNode) {
-    return extract_lowest_bit(memoryNode->neighbours);
+    MemoryNode *const neighbours = memoryNode->neighbours;
+    return extract_lowest_bit(neighbours);
 }
 
 static void memoryNode_set_is_marked(MemoryNode *const memoryNode, const bool isMarked) {
-    memoryNode->neighbours = set_lowest_bit(memoryNode->neighbours, isMarked);
+    MemoryNode *const neighbours = memoryNode->neighbours;
+    memoryNode->neighbours = set_lowest_bit(neighbours, isMarked);
 }
 
 static void **memoryNode_ptr_to_neighbour_ptr(MemoryNode const *const memoryNode, const uint16_t index) {
-    assert(index < memoryNode_get_neighbour_count(memoryNode));
+    assert(index <= memoryNode_get_neighbour_count(memoryNode) == 0 ? 1 : memoryNode_get_neighbour_count(memoryNode));
     return (void **) ((uintptr_t) memoryNode + sizeof(void *) * index);
 }
 
@@ -97,7 +105,7 @@ void *memoryNode_get_data(MemoryNode const *const memoryNode) {
     uint16_t size = memoryNode_get_neighbour_count(memoryNode);
     if (size == 0) size = 1;
 
-    return *memoryNode_ptr_to_neighbour_ptr(memoryNode, size);
+    return memoryNode_ptr_to_neighbour_ptr(memoryNode, size);
 }
 
 
@@ -215,7 +223,7 @@ void memoryPool_free(MemoryPool *const memoryPool, void (*free_data)(void *)) {
  * Requires that  `data size + sizeof(void*) * neighbours < 1ULL << 16`.
  */
 MemoryNode *memoryPool_alloc(MemoryPool *const memoryPool, const size_t data_size, const size_t neighbours) {
-    const size_t memoryNode_size = sizeof(void *) * (neighbours == 0 ? 1 : neighbours);
+    const size_t memoryNode_size = sizeof(MemoryNode *) * (neighbours == 0 ? 1 : neighbours);
     const size_t total_size = memoryNode_size + data_size;
     assert(total_size < 1ULL << 16);
 
@@ -394,237 +402,97 @@ void memoryPool_gc_mark_and_sweep(MemoryPool *const memoryPool, free_fn f) {
     memoryPool_gc_sweep(memoryPool, f);
 }
 
-/*
 
-void dfs(MemoryNode *current, void (*const for_each)(void *)) {
-    if (current == NULL) {
-        return;
-    }
+const size_t DEFAULT_POOL_SIZE = 1ULL << 10;
 
-    if (for_each != NULL) {
-        for_each(current->data);
-    }
-    toggle_marked(current);
-
-    const bool marking = is_marked(current);
-    MemoryNode *previous = NULL, *next = NULL;
-    while (current != NULL) {
-        if (get_ptr_count(current) < current->neighbour_count) {
-            next = current->neighbours[get_ptr_count(current)];
-            if (next != NULL && is_marked(next) != marking) {
-                if (for_each != NULL) {
-                    for_each(next->data);
-                }
-                toggle_marked(next);
-                current->neighbours[get_ptr_count(current)] = previous;
-                previous = current;
-                current = next;
-            } else {
-                inc_ptr_count(current);
-            }
-        } else {
-            reset_ptr_count(current);
-            next = current;
-            current = previous;
-            if (current != NULL) {
-                previous = current->neighbours[get_ptr_count(current)];
-                current->neighbours[get_ptr_count(current)] = next;
-                inc_ptr_count(current);
-            }
-        }
-    }
+void test_alloc_pool() {
+    MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE);
+    memoryPool_free(&pool, NULL);
 }
 
-void reduce_to_dfs_tree(MemoryNode *current) {
-    if (current == NULL) {
-        return;
-    }
-
-    toggle_marked(current);
-
-    const bool marking = is_marked(current);
-    MemoryNode *previous = NULL, *next = NULL;
-    while (current != NULL) {
-        if (get_ptr_count(current) < current->neighbour_count) {
-            next = current->neighbours[get_ptr_count(current)];
-            if (next != NULL && is_marked(next) != marking) {
-                toggle_marked(next);
-                current->neighbours[get_ptr_count(current)] = previous;
-                previous = current;
-                current = next;
-            } else {
-                current->neighbours[get_ptr_count(current)] = NULL;
-                inc_ptr_count(current);
-            }
-        } else {
-            reset_ptr_count(current);
-            next = current;
-            current = previous;
-            if (current != NULL) {
-                previous = current->neighbours[get_ptr_count(current)];
-                current->neighbours[get_ptr_count(current)] = next;
-                inc_ptr_count(current);
-            }
-        }
-    }
+void test_alloc_pool_2() {
+    MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE - 1);
+    memoryPool_free(&pool, NULL);
 }
 
-void free_nodes(MemoryNode *current, void (*const free_data)(void *)) {
-    if (current == NULL) {
-        return;
-    }
-
-    reduce_to_dfs_tree(current);
-
-    MemoryNode *previous = NULL, *next = NULL;
-    while (current != NULL) {
-        if (get_ptr_count(current) < current->neighbour_count) {
-            next = current->neighbours[get_ptr_count(current)];
-            if (next != NULL) {
-                toggle_marked(next);
-                current->neighbours[get_ptr_count(current)] = previous;
-                previous = current;
-                current = next;
-            } else {
-                inc_ptr_count(current);
-            }
-        } else {
-            if (free_data != NULL) {
-                free_data(current->data);
-            }
-            FREE(current);
-            current = previous;
-            if (current != NULL) {
-                previous = current->neighbours[get_ptr_count(current)];
-                inc_ptr_count(current);
-            }
-        }
-    }
+void test_alloc_node() {
+    MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE);
+    MemoryNode *const node = memoryPool_alloc(&pool, sizeof(uint64_t), 0);
+    int *const data = memoryNode_get_data(node);
+    *data = 42;
+    memoryPool_free(&pool, NULL);
 }
 
-int *data = NULL;
-size_t data_size = 0;
+void test_alloc_multiple() {
+    MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE);
 
-void init_out(const size_t size) {
-    data = CALLOC(size, sizeof(int));
-    data_size = size;
+    MemoryNode *const node = memoryPool_alloc(&pool, sizeof(uint64_t), 0);
+    int *const data = memoryNode_get_data(node);
+    *data = 42;
+
+    MemoryNode *const node2 = memoryPool_alloc(&pool, sizeof(uint64_t), 0);
+    int *const data2 = memoryNode_get_data(node2);
+    *data2 = 36;
+
+    MemoryNode *const node3 = memoryPool_alloc(&pool, sizeof(uint64_t), 0);
+    assert(*data == 42);
+    assert(*data2 == 36);
+
+    memoryPool_free(&pool, NULL);
 }
 
-void free_out() {
-    FREE(data);
-    data = NULL;
-    data_size = 0;
+void test_add_to_root_set() {
+    MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE);
+    MemoryNode *const node = memoryPool_alloc(&pool, sizeof(uint64_t), 0);
+    int *const data = memoryNode_get_data(node);
+    *data = 42;
+    memoryPool_add_root_node(&pool, node);
+    assert(*data == 42);
+    memoryPool_free(&pool, NULL);
 }
 
-void inc_out(void *value) {
-    const int index = *(int *) value;
-    assert(index >= 0 && index < data_size);
-    ++data[index];
-}
+void test_set_neighbour() {
+    MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE);
 
-bool all_same(const int value) {
-    for (int i = 0; i < data_size; ++i) {
-        if (data[i] != value) {
-            return false;
-        }
-    }
+    MemoryNode *const node = memoryPool_alloc(&pool, sizeof(uint64_t), 1);
+    int *const data = memoryNode_get_data(node);
+    *data = 42;
 
-    return true;
-}
+    MemoryNode *const node2 = memoryPool_alloc(&pool, sizeof(uint64_t), 2);
+    int *const data2 = memoryNode_get_data(node2);
+    *data2 = 36;
+    memoryNode_setNeighbour(node, node2, 0);
 
-void test_nodes_inc_by_one(MemoryNode *root, size_t count) {
-    init_out(count);
-    dfs(root, inc_out);
-    assert(all_same(1));
-    free_nodes(root, NULL);
-    free_out();
-}
+    MemoryNode *const node3 = memoryPool_alloc(&pool, sizeof(uint64_t), 2);
+    int *const data3 = memoryNode_get_data(node3);
+    *data3 = 1337;
+    memoryNode_setNeighbour(node2, node3, 1);
 
-void test_list() {
-    int id[3] = {0, 1, 2};
-    MemoryNode *a = new_node(&id[0], 1);
-    MemoryNode *b = new_node(&id[1], 1);
-    MemoryNode *c = new_node(&id[2], 0);
-    a->neighbours[0] = b;
-    b->neighbours[0] = c;
+    assert(memoryNode_get_neighbour_count(node) == 1);
+    assert(memoryNode_get_neighbour_count(node2) == 2);
+    assert(memoryNode_get_neighbour_count(node3) == 2);
 
-    test_nodes_inc_by_one(a, 3);
-}
+    assert(memoryNode_getNeighbour(node, 0) == node2);
+    assert(memoryNode_getNeighbour(node2, 0) == NULL);
+    assert(memoryNode_getNeighbour(node2, 1) == node3);
 
-void test_triangle() {
-    int id[3] = {0, 1, 2};
-    MemoryNode *a = new_node(&id[0], 1);
-    MemoryNode *b = new_node(&id[1], 1);
-    MemoryNode *c = new_node(&id[2], 1);
-    a->neighbours[0] = b;
-    b->neighbours[0] = c;
-    c->neighbours[0] = a;
+    assert(memoryNode_get_counter(node2) == 0);
 
-    test_nodes_inc_by_one(a, 3);
-}
+    assert(!memoryNode_is_marked(node));
+    assert(!memoryNode_is_marked(node2));
+    assert(!memoryNode_is_marked(node3));
 
-void test_windmill() {
-    int id[8] = {0, 1, 2, 3, 4, 5, 6, 7};
-    MemoryNode *a = new_node(&id[0], 2);
-    MemoryNode *b = new_node(&id[1], 2);
-    MemoryNode *c = new_node(&id[2], 2);
-    MemoryNode *d = new_node(&id[3], 2);
-
-    MemoryNode *e = new_node(&id[4], 0);
-    MemoryNode *f = new_node(&id[5], 0);
-    MemoryNode *g = new_node(&id[6], 0);
-    MemoryNode *h = new_node(&id[7], 0);
-
-    a->neighbours[0] = b;
-    b->neighbours[0] = c;
-    c->neighbours[0] = d;
-    d->neighbours[0] = a;
-
-    a->neighbours[1] = e;
-    b->neighbours[1] = f;
-    c->neighbours[1] = g;
-    d->neighbours[1] = h;
-
-    test_nodes_inc_by_one(a, 8);
-}
-
-void test_8() {
-    int id[6] = {0, 1, 2, 3, 4, 5};
-    MemoryNode *a = new_node(&id[0], 2);
-    MemoryNode *b = new_node(&id[1], 2);
-    MemoryNode *c = new_node(&id[2], 2);
-    MemoryNode *d = new_node(&id[3], 2);
-    MemoryNode *e = new_node(&id[4], 2);
-    MemoryNode *f = new_node(&id[5], 2);
-
-    a->neighbours[0] = b;
-    b->neighbours[0] = c;
-    c->neighbours[0] = d;
-    d->neighbours[0] = a;
-
-    b->neighbours[1] = e;
-    e->neighbours[0] = f;
-    f->neighbours[0] = c;
-    c->neighbours[1] = b;
-
-    test_nodes_inc_by_one(b, 6);
-}
-
-void test_self_loop() {
-    int id[1] = {0};
-    MemoryNode *a = new_node(&id[0], 1);
-    a->neighbours[0] = a;
-
-    test_nodes_inc_by_one(a, 1);
+    assert(*data == 42);
+    assert(*data2 == 36);
+    assert(*data3 == 1337);
+    memoryPool_free(&pool, NULL);
 }
 
 int main() {
-    test_list();
-    test_triangle();
-    test_windmill();
-    test_8();
-    test_self_loop();
+    test_alloc_pool();
+    test_alloc_pool_2();
+    test_alloc_node();
+    test_alloc_multiple();
+    test_add_to_root_set();
+    test_set_neighbour();
 }
- */
-
-int main() {}
