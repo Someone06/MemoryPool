@@ -233,26 +233,53 @@ bool memoryPool_add_root_node(MemoryPool *const memoryPool, MemoryNode *const me
     return true;
 }
 
+/*
+ * An implementation of an iterative Depth-first Search algorithm that marks all
+ * nodes it encounters and applies to each node for_each function the first time
+ * the node is found.
+ *
+ * The search uses a technique called pointer reversal to reduce the amount of
+ * bookkeeping memory needed. The algorithm is complicated by the fact that the
+ * counter of MemoryNode is only available for Memory nodes that have two more
+ * neighbours. The BACK_OFF and FORWARD macros contain the code that is needed
+ * to work around this limitation: If a node has no neighbours no counter is
+ * needed because the search cannot continue past this node. If a node only has
+ * one neighbour, then we only need to know whether we already continued the
+ * search past that node. We can memorize this by always moving past nodes that
+ * have only one neighbour till we find a node which has more than one
+ * neighbour. If no such node exists, meaning if the search gets stuck in a node
+ * that has no neighbours at all, than we need to back off past the node with
+ * only one neighbour, from which the forward search originally started.
+ */
 static void dfs(MemoryNode *current, void (*const for_each)(void *)) {
 
-#define BACK_OFF                                                                \
-    while (true) {                                                              \
-        memoryNode_reset_counter(current);                                      \
-        next = current;                                                         \
-        current = previous;                                                     \
-        if (current == NULL)                                                    \
-            break;                                                              \
-                                                                                \
-        previous = memoryNode_getNeighbour(current, 0);                         \
-        const uint16_t preNeighbours = memoryNode_get_neighbour_count(current); \
-        memoryNode_setNeighbour(current, next, preNeighbours);                  \
-        if (preNeighbours >= 2) {                                               \
-            memoryNode_inc_counter(current);                                    \
-            break;                                                              \
-        }                                                                       \
+#define BACK_OFF                                                                  \
+    /*                                                                            \
+     * Move backwards till we find a node with more than one neighbour.           \
+     *  Invariant: We have visited all neighbours of the current node.            \
+     */                                                                           \
+    while (true) {                                                                \
+        memoryNode_reset_counter(current);                                        \
+        next = current;                                                           \
+        current = previous;                                                       \
+        if (current == NULL)                                                      \
+            break;                                                                \
+                                                                                  \
+        previous = memoryNode_getNeighbour(current, 0);                           \
+        const uint16_t preNeighbours = memoryNode_get_neighbour_count(current);   \
+        memoryNode_setNeighbour(current, next, preNeighbours);                    \
+        if (preNeighbours >= 2) {                                                 \
+            memoryNode_inc_counter(current);                                      \
+            break;                                                                \
+        }                                                                         \
     }
 
-#define FORWARD                                                      \
+#define FORWARD                                                                  \
+    /*                                                                           \
+     * Move forward till there is a node with more than one neighbour.           \
+     * If no such node is found, back off.                                       \
+     * Invariant: The current node revers to a node that has only one neighbour. \
+     */                                                                          \
     while (true) {                                                   \
         next = memoryNode_getNeighbour(current, 0);                  \
         if (memoryNode_is_marked(next)) {                            \
@@ -295,6 +322,11 @@ static void dfs(MemoryNode *current, void (*const for_each)(void *)) {
         FORWARD
     }
 
+    /*
+     * Visits all neighbours of the current node in a depth-first search manner.
+     * Invariant: The current node has more than one neighbour. The first
+     * counter(current) neighbours of current have already been visited.
+     */
     while (current != NULL) {
         const uint16_t neighbours = memoryNode_get_neighbour_count(current);
         assert(neighbours > 1);
