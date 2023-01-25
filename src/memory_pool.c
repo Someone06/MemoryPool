@@ -306,7 +306,7 @@ static void dfs(MemoryNode *current, void (*const for_each)(void *)) {
         }
 
         next = memoryNode_getNeighbour(current, counter);
-        if (memoryNode_is_marked(next)) {
+        if (next == NULL || memoryNode_is_marked(next)) {
             memoryNode_inc_counter(current);
             continue;
         }
