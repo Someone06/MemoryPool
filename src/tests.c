@@ -5,25 +5,25 @@
 static const size_t DEFAULT_POOL_SIZE = 1ULL << 10;
 
 void test_alloc_pool() {
-    MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE);
-    memoryPool_free(&pool, NULL);
+    MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE, NULL);
+    memoryPool_free(&pool);
 }
 
 void test_alloc_pool_2() {
-    MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE - 1);
-    memoryPool_free(&pool, NULL);
+    MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE - 1, NULL);
+    memoryPool_free(&pool);
 }
 
 void test_alloc_node() {
-    MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE);
+    MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE, NULL);
     MemoryNode *const node = memoryPool_alloc(&pool, sizeof(uint64_t), 0);
     int *const data = memoryNode_get_data(node);
     *data = 42;
-    memoryPool_free(&pool, NULL);
+    memoryPool_free(&pool);
 }
 
 void test_alloc_multiple() {
-    MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE);
+    MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE, NULL);
 
     MemoryNode *const node = memoryPool_alloc(&pool, sizeof(uint64_t), 0);
     int *const data = memoryNode_get_data(node);
@@ -37,21 +37,21 @@ void test_alloc_multiple() {
     assert(*data == 42);
     assert(*data2 == 36);
 
-    memoryPool_free(&pool, NULL);
+    memoryPool_free(&pool);
 }
 
 void test_add_to_root_set() {
-    MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE);
+    MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE, NULL);
     MemoryNode *const node = memoryPool_alloc(&pool, sizeof(uint64_t), 0);
     int *const data = memoryNode_get_data(node);
     *data = 42;
     memoryPool_add_root_node(&pool, node);
     assert(*data == 42);
-    memoryPool_free(&pool, NULL);
+    memoryPool_free(&pool);
 }
 
 void test_set_neighbour() {
-    MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE);
+    MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE, NULL);
 
     MemoryNode *const node = memoryPool_alloc(&pool, sizeof(uint64_t), 1);
     int *const data = memoryNode_get_data(node);
@@ -78,7 +78,7 @@ void test_set_neighbour() {
     assert(*data == 42);
     assert(*data2 == 36);
     assert(*data3 == 1337);
-    memoryPool_free(&pool, NULL);
+    memoryPool_free(&pool);
 }
 
 void run_tests() {

@@ -29,6 +29,12 @@ typedef struct MemoryPoolNode {
 } MemoryPoolNode;
 
 /*
+ * A free function that is applied to the data of a memory node before it's
+ * memory is reclaimed.
+ */
+typedef void (*FreeFn)(void *);
+
+/*
  * The MemoryPool holds a certain amount of memory from which MemoryNodes can be
  * allocated. The pool is garbage collected.
  *
@@ -36,22 +42,21 @@ typedef struct MemoryPoolNode {
  * not be (transitively) reached by from any root node.
  */
 typedef struct {
-    void *space;
     MemoryPoolNode *head;
     MemoryNode **rootSet;
     size_t rootSetSize;
     size_t rootSetCapacity;
+    FreeFn freeFn;
 } MemoryPool;
 
-typedef void (*free_fn)(void *);
 
-MemoryPool memory_pool_new(size_t pool_size);
-void memoryPool_free(MemoryPool *memoryPool, void (*free_data)(void *));
+MemoryPool memory_pool_new(size_t pool_size, FreeFn freeFn);
+void memoryPool_free(MemoryPool *memoryPool);
 
 /*
  * Requires that  `data size + sizeof(void*) * neighbours < 1ULL << 16`.
  */
 MemoryNode *memoryPool_alloc(MemoryPool *memoryPool, size_t data_size, size_t neighbours);
 bool memoryPool_add_root_node(MemoryPool *memoryPool, MemoryNode *memoryNode);
-void memoryPool_gc_mark_and_sweep(MemoryPool *memoryPool, free_fn f);
+void memoryPool_gc_mark_and_sweep(MemoryPool *memoryPool);
 #endif

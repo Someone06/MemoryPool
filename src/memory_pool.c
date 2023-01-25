@@ -130,7 +130,7 @@ void memoryNode_setNeighbour(MemoryNode *const memoryNode, MemoryNode const *con
 static const size_t DEFAULT_ROOT_SET_SIZE = 8;
 static const size_t MemoryPoolNode_MaxMemoryPerNode = (1ULL << 16) - 1;
 
-MemoryPool memory_pool_new(const size_t pool_size) {
+MemoryPool memory_pool_new(const size_t pool_size, const FreeFn freeFn) {
     assert(pool_size >= sizeof(MemoryPoolNode));
 
 
@@ -170,15 +170,15 @@ MemoryPool memory_pool_new(const size_t pool_size) {
 
 #undef min
 
-    return (MemoryPool){.space = space, .head = space, .rootSet = rootSet, .rootSetSize = 0, .rootSetCapacity = DEFAULT_ROOT_SET_SIZE};
+    return (MemoryPool){.head = space, .rootSet = rootSet, .rootSetSize = 0, .rootSetCapacity = DEFAULT_ROOT_SET_SIZE, .freeFn = freeFn};
 }
 
-void memoryPool_free(MemoryPool *const memoryPool, void (*free_data)(void *)) {
-    if (free_data) {
+void memoryPool_free(MemoryPool *const memoryPool) {
+    if (memoryPool->freeFn) {
         MemoryPoolNode *node = memoryPool->head;
         while (node) {
             if (!memoryPoolNode_is_free(node)) {
-                free_data(memoryNode_get_data(memoryPoolNode_get_data(node)));
+                memoryPool->freeFn(memoryNode_get_data(memoryPoolNode_get_data(node)));
             }
 
             node = memoryPoolNode_get_next(node);
@@ -186,7 +186,7 @@ void memoryPool_free(MemoryPool *const memoryPool, void (*free_data)(void *)) {
     }
 
     FREE(memoryPool->rootSet);
-    FREE(memoryPool->space);
+    FREE(memoryPool->head);
     memset(memoryPool, 0, sizeof(MemoryPool));
 }
 
@@ -339,8 +339,9 @@ static void memoryPool_gc_mark(MemoryPool *const memoryPool) {
 }
 
 
-static void memoryPool_gc_sweep(MemoryPool *const memoryPool, free_fn f) {
+static void memoryPool_gc_sweep(MemoryPool *const memoryPool) {
     MemoryPoolNode *current = memoryPool->head;
+    FreeFn f = memoryPool->freeFn;
     while (current) {
         if (memoryPoolNode_is_free(current))
             goto next;
@@ -353,9 +354,7 @@ static void memoryPool_gc_sweep(MemoryPool *const memoryPool, free_fn f) {
         }
 
         void *data = memoryNode_get_data(memoryNode);
-        if (f)
-            f(data);
-
+        if (f) f(data);
         memoryPoolNode_set_is_free(current, true);
         goto next;
 
@@ -364,7 +363,7 @@ static void memoryPool_gc_sweep(MemoryPool *const memoryPool, free_fn f) {
     }
 }
 
-void memoryPool_gc_mark_and_sweep(MemoryPool *const memoryPool, free_fn f) {
+void memoryPool_gc_mark_and_sweep(MemoryPool *const memoryPool) {
     memoryPool_gc_mark(memoryPool);
-    memoryPool_gc_sweep(memoryPool, f);
+    memoryPool_gc_sweep(memoryPool);
 }
