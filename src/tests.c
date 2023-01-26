@@ -1,5 +1,6 @@
 #include "tests.h"
 #include "assert.h"
+#include "memory.h"
 #include "memory_pool.h"
 
 static const size_t DEFAULT_POOL_SIZE = 1ULL << 10;
@@ -81,6 +82,63 @@ void test_set_neighbour() {
     memoryPool_free(&pool);
 }
 
+uint64_t * data = NULL;
+size_t data_size = 0;
+
+void init_out(const size_t size) {
+    data = CALLOC(size, sizeof(uint64_t));
+    data_size = size;
+}
+
+void free_out() {
+    FREE(data);
+    data = NULL;
+    data_size = 0;
+}
+
+void inc_out(MemoryNode const *node) {
+    const uint64_t index = *(uint64_t *) memoryNode_get_data(node);
+    assert(index >= 0 && index < data_size);
+    ++data[index];
+}
+
+bool all_same(const int value) {
+    for (int i = 0; i < data_size; ++i) {
+        if (data[i] != value) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void test_nodes_inc_by_one(MemoryNode *root, size_t count) {
+    init_out(count);
+    memoryPool_dfs(root, inc_out);
+    assert(all_same(1));
+    free_out();
+}
+
+void test_dfs_triangle() {
+    MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE, NULL);
+
+    MemoryNode *const node1 = memoryPool_alloc(&pool, sizeof(uint64_t), 1);
+    *(uint64_t *)memoryNode_get_data(node1) = (uint64_t) 0;
+
+    MemoryNode *const node2 = memoryPool_alloc(&pool, sizeof(uint64_t), 1);
+    *(uint64_t *)memoryNode_get_data(node2) = (uint64_t)1;
+
+    MemoryNode *const node3 = memoryPool_alloc(&pool, sizeof(uint64_t), 1);
+    *(uint64_t *)memoryNode_get_data(node3) = (uint64_t)2;
+
+    memoryNode_setNeighbour(node1, node2, 0);
+    memoryNode_setNeighbour(node2, node3, 0);
+    memoryNode_setNeighbour(node3, node1, 0);
+
+    test_nodes_inc_by_one(node1, 3);
+    memoryPool_free(&pool);
+}
+
 void run_tests() {
     test_alloc_pool();
     test_alloc_pool_2();
@@ -88,4 +146,5 @@ void run_tests() {
     test_alloc_multiple();
     test_add_to_root_set();
     test_set_neighbour();
+    test_dfs_triangle();
 }
