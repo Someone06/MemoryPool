@@ -251,7 +251,7 @@ bool memoryPool_add_root_node(MemoryPool *const memoryPool, MemoryNode *const me
  * that has no neighbours at all, than we need to back off past the node with
  * only one neighbour, from which the forward search originally started.
  */
-static void dfs(MemoryNode *current, void (*const for_each)(void *)) {
+void memoryPool_dfs(MemoryNode *current, void (*const for_each)(MemoryNode const *)) {
 
 #define BACK_OFF                                                                  \
     /*                                                                            \
@@ -259,7 +259,6 @@ static void dfs(MemoryNode *current, void (*const for_each)(void *)) {
      *  Invariant: We have visited all neighbours of the current node.            \
      */                                                                           \
     while (true) {                                                                \
-        memoryNode_reset_counter(current);                                        \
         next = current;                                                           \
         current = previous;                                                       \
         if (current == NULL)                                                      \
@@ -289,7 +288,7 @@ static void dfs(MemoryNode *current, void (*const for_each)(void *)) {
                                                                      \
         memoryNode_set_is_marked(next, true);                        \
         if (for_each != NULL)                                        \
-            for_each(memoryNode_get_data(next));                     \
+            for_each(next);                                          \
                                                                      \
         const int neighbours = memoryNode_get_neighbour_count(next); \
         if (neighbours == 0) {                                       \
@@ -309,7 +308,7 @@ static void dfs(MemoryNode *current, void (*const for_each)(void *)) {
         return;
 
     if (for_each != NULL)
-        for_each(memoryNode_get_data(current));
+        for_each(current);
 
     memoryNode_set_is_marked(current, true);
 
@@ -333,6 +332,7 @@ static void dfs(MemoryNode *current, void (*const for_each)(void *)) {
 
         const uint16_t counter = memoryNode_get_counter(current);
         if (counter == neighbours) {
+            memoryNode_reset_counter(current);                                        \
             BACK_OFF
             continue;
         }
@@ -344,7 +344,7 @@ static void dfs(MemoryNode *current, void (*const for_each)(void *)) {
         }
 
         if (for_each != NULL)
-            for_each(memoryNode_get_data(next));
+            for_each(next);
 
         const int next_neighbours = memoryNode_get_neighbour_count(next);
         if (next_neighbours == 0)
@@ -367,7 +367,7 @@ static void dfs(MemoryNode *current, void (*const for_each)(void *)) {
 static void memoryPool_gc_mark(MemoryPool *const memoryPool) {
     const size_t rootSetSize = memoryPool->rootSetSize;
     for (int i = 0; i < rootSetSize; ++i)
-        dfs(memoryPool->rootSet[i], NULL);
+        memoryPool_dfs(memoryPool->rootSet[i], NULL);
 }
 
 
