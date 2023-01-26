@@ -123,13 +123,13 @@ void test_dfs_triangle() {
     MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE, NULL);
 
     MemoryNode *const node1 = memoryPool_alloc(&pool, sizeof(uint64_t), 1);
-    *(uint64_t *)memoryNode_get_data(node1) = (uint64_t) 0;
+    *(uint64_t *)memoryNode_get_data(node1) =  0;
 
     MemoryNode *const node2 = memoryPool_alloc(&pool, sizeof(uint64_t), 1);
-    *(uint64_t *)memoryNode_get_data(node2) = (uint64_t)1;
+    *(uint64_t *)memoryNode_get_data(node2) = 1;
 
     MemoryNode *const node3 = memoryPool_alloc(&pool, sizeof(uint64_t), 1);
-    *(uint64_t *)memoryNode_get_data(node3) = (uint64_t)2;
+    *(uint64_t *)memoryNode_get_data(node3) = 2;
 
     memoryNode_setNeighbour(node1, node2, 0);
     memoryNode_setNeighbour(node2, node3, 0);
