@@ -253,55 +253,59 @@ bool memoryPool_add_root_node(MemoryPool *const memoryPool, MemoryNode *const me
  */
 void memoryPool_dfs(MemoryNode *current, void (*const for_each)(MemoryNode const *)) {
 
-#define BACK_OFF                                                                  \
-    /*                                                                            \
-     * Move backwards till we find a node with more than one neighbour.           \
-     *  Invariant: We have visited all neighbours of the current node.            \
-     */                                                                           \
-    while (true) {                                                                \
-        next = current;                                                           \
-        current = previous;                                                       \
-        if (current == NULL)                                                      \
-            break;                                                                \
-                                                                                  \
-        previous = memoryNode_getNeighbour(current, 0);                           \
-        const uint16_t preNeighbours = memoryNode_get_neighbour_count(current);   \
-        memoryNode_setNeighbour(current, next, preNeighbours);                    \
-        if (preNeighbours >= 2) {                                                 \
-            memoryNode_inc_counter(current);                                      \
-            break;                                                                \
-        }                                                                         \
+#define BACK_OFF                                                                \
+    /*                                                                          \
+     * Move backwards till we find a node with more than one neighbour.         \
+     *  Invariant: We have visited all neighbours of the current node.          \
+     */                                                                         \
+    while (true) {                                                              \
+        next = current;                                                         \
+        current = previous;                                                     \
+        if (current == NULL)                                                    \
+            break;                                                              \
+                                                                                \
+        const uint16_t preNeighbours = memoryNode_get_neighbour_count(current); \
+        if(preNeighbours >= 2) {                                                \
+            const uint16_t counter = memoryNode_get_counter(current);           \
+            previous = memoryNode_getNeighbour(current, counter);               \
+            memoryNode_setNeighbour(current, next, counter);                    \
+            memoryNode_inc_counter(current);                                    \
+            break;                                                              \
+        }                                                                       \
+                                                                                \
+        previous = memoryNode_getNeighbour(current, 0);                         \
+        memoryNode_setNeighbour(current, next, 0);                              \
     }
 
-#define FORWARD                                                                  \
+#define FORWARD                                                                    \
     /*                                                                           \
      * Move forward till there is a node with more than one neighbour.           \
      * If no such node is found, back off.                                       \
      * Invariant: The current node revers to a node that has only one neighbour. \
-     */                                                                          \
-    while (true) {                                                   \
-        next = memoryNode_getNeighbour(current, 0);                  \
-        if (memoryNode_is_marked(next)) {                            \
-            BACK_OFF                                                 \
-            break;                                                   \
-        }                                                            \
-                                                                     \
-        memoryNode_set_is_marked(next, true);                        \
-        if (for_each != NULL)                                        \
-            for_each(next);                                          \
-                                                                     \
-        const int neighbours = memoryNode_get_neighbour_count(next); \
-        if (neighbours == 0) {                                       \
-            BACK_OFF                                                 \
-            break;                                                   \
-        }                                                            \
-                                                                     \
-        memoryNode_setNeighbour(current, previous, 0);               \
-        previous = current;                                          \
-        current = next;                                              \
-        if (neighbours != 1) {                                       \
-            break;                                                   \
-        }                                                            \
+     */ \
+    while (true) {                                                                 \
+        next = memoryNode_getNeighbour(current, 0);                                \
+        if (memoryNode_is_marked(next)) {                                          \
+            BACK_OFF                                                               \
+            break;                                                                 \
+        }                                                                          \
+                                                                                   \
+        memoryNode_set_is_marked(next, true);                                      \
+        if (for_each != NULL)                                                      \
+            for_each(next);                                                        \
+                                                                                   \
+        const int neighbours = memoryNode_get_neighbour_count(next);               \
+        if (neighbours == 0) {                                                     \
+            BACK_OFF                                                               \
+            break;                                                                 \
+        }                                                                          \
+                                                                                   \
+        memoryNode_setNeighbour(current, previous, 0);                             \
+        previous = current;                                                        \
+        current = next;                                                            \
+        if (neighbours != 1) {                                                     \
+            break;                                                                 \
+        }                                                                          \
     }
 
     if (current == NULL || memoryNode_is_marked(current))
@@ -332,7 +336,7 @@ void memoryPool_dfs(MemoryNode *current, void (*const for_each)(MemoryNode const
 
         const uint16_t counter = memoryNode_get_counter(current);
         if (counter == neighbours) {
-            memoryNode_reset_counter(current);                                        \
+            memoryNode_reset_counter(current);
             BACK_OFF
             continue;
         }
