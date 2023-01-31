@@ -347,12 +347,15 @@ void memoryPool_dfs(MemoryNode *current, void (*const for_each)(MemoryNode const
             continue;
         }
 
+        memoryNode_set_is_marked(next, true);
         if (for_each != NULL)
             for_each(next);
 
         const int next_neighbours = memoryNode_get_neighbour_count(next);
-        if (next_neighbours == 0)
+        if (next_neighbours == 0) {
+            memoryNode_inc_counter(current);
             continue;
+        }
 
         memoryNode_setNeighbour(current, previous, counter);
         previous = current;
