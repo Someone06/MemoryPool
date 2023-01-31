@@ -281,11 +281,11 @@ void memoryPool_dfs(MemoryNode *current, void (*const for_each)(MemoryNode const
     /*                                                                           \
      * Move forward till there is a node with more than one neighbour.           \
      * If no such node is found, back off.                                       \
-     * Invariant: The current node revers to a node that has only one neighbour. \
+     * Invariant: The current node refers to a node that has only one neighbour. \
      */ \
     while (true) {                                                                 \
         next = memoryNode_getNeighbour(current, 0);                                \
-        if (memoryNode_is_marked(next)) {                                          \
+        if (next == NULL || memoryNode_is_marked(next)) {                          \
             BACK_OFF                                                               \
             break;                                                                 \
         }                                                                          \
