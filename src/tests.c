@@ -139,6 +139,104 @@ void test_dfs_triangle() {
     memoryPool_free(&pool);
 }
 
+void test_dfs_list() {
+     MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE, NULL);
+
+    MemoryNode *const node1 = memoryPool_alloc(&pool, sizeof(uint64_t), 1);
+    *(uint64_t *)memoryNode_get_data(node1) =  0;
+
+    MemoryNode *const node2 = memoryPool_alloc(&pool, sizeof(uint64_t), 1);
+    *(uint64_t *)memoryNode_get_data(node2) = 1;
+
+    MemoryNode *const node3 = memoryPool_alloc(&pool, sizeof(uint64_t), 1);
+    *(uint64_t *)memoryNode_get_data(node3) = 2;
+
+    memoryNode_setNeighbour(node1, node2, 0);
+    memoryNode_setNeighbour(node2, node3, 0);
+
+    test_nodes_inc_by_one(node1, 3);
+    memoryPool_free(&pool);
+}
+
+void test_dfs_single_node() {
+     MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE, NULL);
+
+    MemoryNode *const node1 = memoryPool_alloc(&pool, sizeof(uint64_t), 0);
+    *(uint64_t *)memoryNode_get_data(node1) =  0;
+
+    test_nodes_inc_by_one(node1, 1);
+    memoryPool_free(&pool);
+}
+
+void test_dfs_bin_tree() {
+     MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE, NULL);
+
+    MemoryNode *const node1 = memoryPool_alloc(&pool, sizeof(uint64_t), 2);
+    *(uint64_t *)memoryNode_get_data(node1) =  0;
+
+    MemoryNode *const node2 = memoryPool_alloc(&pool, sizeof(uint64_t), 2);
+    *(uint64_t *)memoryNode_get_data(node2) = 1;
+
+    MemoryNode *const node3 = memoryPool_alloc(&pool, sizeof(uint64_t), 2);
+    *(uint64_t *)memoryNode_get_data(node3) = 2;
+
+    MemoryNode *const node4 = memoryPool_alloc(&pool, sizeof(uint64_t), 0);
+    *(uint64_t *)memoryNode_get_data(node4) = 3;
+
+    MemoryNode *const node5 = memoryPool_alloc(&pool, sizeof(uint64_t), 0);
+    *(uint64_t *)memoryNode_get_data(node5) = 4;
+
+    MemoryNode *const node6 = memoryPool_alloc(&pool, sizeof(uint64_t), 1);
+    *(uint64_t *)memoryNode_get_data(node6) = 5;
+
+    MemoryNode *const node7 = memoryPool_alloc(&pool, sizeof(uint64_t), 1);
+    *(uint64_t *)memoryNode_get_data(node7) = 6;
+
+    memoryNode_setNeighbour(node1, node2, 0);
+    memoryNode_setNeighbour(node1, node3, 1);
+    memoryNode_setNeighbour(node2, node4, 0);
+    memoryNode_setNeighbour(node2, node5, 1);
+    memoryNode_setNeighbour(node3, node6, 0);
+    memoryNode_setNeighbour(node3, node7, 1);
+    memoryNode_setNeighbour(node7, node1, 0);
+
+    test_nodes_inc_by_one(node1, 7);
+    memoryPool_free(&pool);
+}
+
+void test_dfs_split_path() {
+    MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE, NULL);
+
+    MemoryNode *const node1 = memoryPool_alloc(&pool, sizeof(uint64_t), 2);
+    *(uint64_t *) memoryNode_get_data(node1) = 0;
+
+    MemoryNode *const node2 = memoryPool_alloc(&pool, sizeof(uint64_t), 1);
+    *(uint64_t *) memoryNode_get_data(node2) = 1;
+
+    MemoryNode *const node3 = memoryPool_alloc(&pool, sizeof(uint64_t), 1);
+    *(uint64_t *) memoryNode_get_data(node3) = 2;
+
+    MemoryNode *const node4 = memoryPool_alloc(&pool, sizeof(uint64_t), 0);
+    *(uint64_t *) memoryNode_get_data(node4) = 3;
+
+    MemoryNode *const node5 = memoryPool_alloc(&pool, sizeof(uint64_t), 1);
+    *(uint64_t *) memoryNode_get_data(node5) = 4;
+
+    MemoryNode *const node6 = memoryPool_alloc(&pool, sizeof(uint64_t), 1);
+    *(uint64_t *) memoryNode_get_data(node6) = 5;
+
+
+    memoryNode_setNeighbour(node1, node2, 0);
+    memoryNode_setNeighbour(node2, node3, 0);
+    memoryNode_setNeighbour(node3, node4, 0);
+    memoryNode_setNeighbour(node1, node5, 1);
+    memoryNode_setNeighbour(node5, node6, 0);
+    memoryNode_setNeighbour(node6, node4, 0);
+
+    test_nodes_inc_by_one(node1, 6);
+    memoryPool_free(&pool);
+}
+
 void run_tests() {
     test_alloc_pool();
     test_alloc_pool_2();
@@ -147,4 +245,8 @@ void run_tests() {
     test_add_to_root_set();
     test_set_neighbour();
     test_dfs_triangle();
+    test_dfs_list();
+    test_dfs_bin_tree();
+    test_dfs_single_node();
+    test_dfs_split_path();
 }
