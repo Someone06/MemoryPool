@@ -5,9 +5,11 @@
 #include "memory_pool.h"
 #include "pointer_bit_hacks.h"
 
+static const size_t PTR_SIZE = sizeof(void*);
+static_assert(sizeof(void*) == 8, "We assume 64-bit pointers.");
+
 // ---------- Memory Pool Node ----------
 static MemoryPoolNode *memoryPoolNode_new(void *const location, MemoryPoolNode *const next, const uint16_t size, const bool is_free) {
-    assert(sizeof(MemoryPoolNode *) == 8);
     assert(extract_top_bits(location) == 0);
     assert(extract_lowest_bit(location) == 0);
 
@@ -18,8 +20,7 @@ static MemoryPoolNode *memoryPoolNode_new(void *const location, MemoryPoolNode *
 }
 
 static MemoryPoolNode *memoryPoolNode_get_next(MemoryPoolNode const *const memoryPoolNode) {
-    MemoryPoolNode *const node = memoryPoolNode->next;
-    return extract_ptr_bits(node);
+    return extract_ptr_bits(memoryPoolNode->next);
 }
 
 static void memoryPoolNode_set_next(MemoryPoolNode *const memoryPoolNode, MemoryPoolNode const *const next) {
@@ -30,23 +31,19 @@ static void memoryPoolNode_set_next(MemoryPoolNode *const memoryPoolNode, Memory
 }
 
 static uint16_t memoryPoolNode_get_free_space(MemoryPoolNode const *const memoryPoolNode) {
-    MemoryPoolNode *const node = memoryPoolNode->next;
-    return extract_top_bits(node);
+    return extract_top_bits(memoryPoolNode->next);
 }
 
 static uint16_t memoryPoolNode_set_free_space(MemoryPoolNode * const memoryPoolNode, const uint16_t freeSpace) {
-    MemoryPoolNode *const node = memoryPoolNode->next;
-    memoryPoolNode->next = set_top_bits(node, freeSpace);
+    memoryPoolNode->next = set_top_bits(memoryPoolNode->next, freeSpace);
 }
 
 static bool memoryPoolNode_is_free(MemoryPoolNode const *const memoryPoolNode) {
-    MemoryPoolNode *const node = memoryPoolNode->next;
-    return extract_lowest_bit(node);
+    return extract_lowest_bit(memoryPoolNode->next);
 }
 
 static void memoryPoolNode_set_is_free(MemoryPoolNode *const memoryPoolNode, const bool is_free) {
-    MemoryPoolNode *const node = memoryPoolNode->next;
-    memoryPoolNode->next = set_lowest_bit(node, is_free);
+    memoryPoolNode->next = set_lowest_bit(memoryPoolNode->next, is_free);
 }
 
 static void *memoryPoolNode_get_data(MemoryPoolNode const *const memoryPoolNode) {
@@ -58,32 +55,29 @@ static void *memoryPoolNode_get_data(MemoryPoolNode const *const memoryPoolNode)
 static MemoryNode *memoryNode_new(void *location, const uint16_t neighbours) {
     assert(~neighbours);
 
-    memset(location, 0, sizeof(void *) * neighbours);
+    memset(location, 0, PTR_SIZE * neighbours);
     MemoryNode *const node = location;
     node->neighbours = set_top_bits(NULL, neighbours);
     return node;
 }
 
 static bool memoryNode_is_marked(MemoryNode const *const memoryNode) {
-    MemoryNode *const neighbours = memoryNode->neighbours;
-    return extract_lowest_bit(neighbours);
+    return extract_lowest_bit(memoryNode->neighbours);
 }
 
 static void memoryNode_set_is_marked(MemoryNode *const memoryNode, const bool isMarked) {
-    MemoryNode *const neighbours = memoryNode->neighbours;
-    memoryNode->neighbours = set_lowest_bit(neighbours, isMarked);
+    memoryNode->neighbours = set_lowest_bit(memoryNode->neighbours, isMarked);
 }
 
-static void **memoryNode_ptr_to_neighbour_ptr(MemoryNode const *const memoryNode, const uint16_t index) {
-    assert(index <= memoryNode_get_neighbour_count(memoryNode) == 0 ? 1 : memoryNode_get_neighbour_count(memoryNode));
-    return (void **) ((uintptr_t) memoryNode + sizeof(void *) * index);
+static MemoryNode **memoryNode_ptr_to_neighbour_ptr(MemoryNode const *const memoryNode, const uint16_t index) {
+    assert(index < (memoryNode_get_neighbour_count(memoryNode) == 0 ? 1 : memoryNode_get_neighbour_count(memoryNode)));
+    return (MemoryNode **) ((uintptr_t) memoryNode + PTR_SIZE * index);
 }
 
 static uint16_t memoryNode_get_counter(MemoryNode const *const memoryNode) {
-    const uint16_t count = memoryNode_get_neighbour_count(memoryNode);
-    assert(count > 1);
+    assert(memoryNode_get_neighbour_count(memoryNode) > 1);
 
-    void const *const second = *memoryNode_ptr_to_neighbour_ptr(memoryNode, 1);
+    MemoryNode const *const second = *memoryNode_ptr_to_neighbour_ptr(memoryNode, 1);
     return extract_top_bits(second);
 }
 
@@ -91,8 +85,8 @@ static uint16_t memoryNode_inc_counter(MemoryNode *const memoryNode) {
     const uint16_t count = memoryNode_get_neighbour_count(memoryNode);
     assert(count > 1);
 
-    void **const second = memoryNode_ptr_to_neighbour_ptr(memoryNode, 1);
-    uintptr_t new_counter_value = extract_top_bits(*second) + 1;
+    MemoryNode **const second = memoryNode_ptr_to_neighbour_ptr(memoryNode, 1);
+    const uintptr_t new_counter_value = extract_top_bits(*second) + 1;
     *second = set_top_bits(*second, new_counter_value);
     return new_counter_value;
 }
@@ -101,7 +95,7 @@ static void memoryNode_reset_counter(MemoryNode *const memoryNode) {
     const uint16_t count = memoryNode_get_neighbour_count(memoryNode);
     assert(count > 1);
 
-    void **const second = memoryNode_ptr_to_neighbour_ptr(memoryNode, 1);
+    MemoryNode **const second = memoryNode_ptr_to_neighbour_ptr(memoryNode, 1);
     *second = set_top_bits(*second, 0);
 }
 
@@ -111,25 +105,24 @@ uint16_t memoryNode_get_neighbour_count(MemoryNode const *const memoryNode) {
 }
 
 MemoryNode *memoryNode_getNeighbour(MemoryNode const *const memoryNode, const uint16_t index) {
-    void *const ptr = *memoryNode_ptr_to_neighbour_ptr(memoryNode, index);
+    MemoryNode *const ptr = *memoryNode_ptr_to_neighbour_ptr(memoryNode, index);
     return extract_ptr_bits(ptr);
 }
 
-void *memoryNode_get_data(MemoryNode const *const memoryNode) {
-    uint16_t size = memoryNode_get_neighbour_count(memoryNode);
-    if (size == 0) size = 1;
-
-    return memoryNode_ptr_to_neighbour_ptr(memoryNode, size);
-}
-
 void memoryNode_setNeighbour(MemoryNode *const memoryNode, MemoryNode const *const neighbour, const uint16_t index) {
-    void **const ptr = memoryNode_ptr_to_neighbour_ptr(memoryNode, index);
+    MemoryNode **const ptr = memoryNode_ptr_to_neighbour_ptr(memoryNode, index);
     const uint16_t top = extract_top_bits(*ptr);
     const bool low_bit = extract_lowest_bit(*ptr);
     void *const decorated = set_lowest_bit(set_top_bits(neighbour, top), low_bit);
     *ptr = decorated;
 }
 
+void *memoryNode_get_data(MemoryNode const *const memoryNode) {
+    uint16_t size = memoryNode_get_neighbour_count(memoryNode);
+    if (size == 0) size = 1;
+
+    return (MemoryNode **) ((uintptr_t) memoryNode + PTR_SIZE * size);
+}
 
 // ---------- Memory Pool ----------
 static const size_t DEFAULT_ROOT_SET_SIZE = 8;
@@ -140,7 +133,7 @@ MemoryPool memory_pool_new(const size_t pool_size, const FreeFn freeFn) {
 
 
     void *const space = MALLOC(pool_size);
-    void *const rootSet = MALLOC(DEFAULT_ROOT_SET_SIZE * sizeof(MemoryNode *));
+    void *const rootSet = MALLOC(DEFAULT_ROOT_SET_SIZE * PTR_SIZE);
 
     if (!space || !rootSet) {
         FREE(space);
@@ -227,7 +220,7 @@ MemoryNode *memoryPool_alloc(MemoryPool *const memoryPool, const size_t data_siz
 
 bool memoryPool_add_root_node(MemoryPool *const memoryPool, MemoryNode *const memoryNode) {
     if (memoryPool->rootSetSize == memoryPool->rootSetCapacity) {
-        MemoryNode **newSet = REALLOC(memoryPool->rootSet, memoryPool->rootSetCapacity, memoryPool->rootSetCapacity * sizeof(MemoryNode *) * 2);
+        MemoryNode ** const newSet = REALLOC(memoryPool->rootSet, memoryPool->rootSetCapacity, memoryPool->rootSetCapacity * sizeof(MemoryNode *) * 2);
         if (!newSet)
             return false;
 
@@ -267,7 +260,7 @@ void memoryPool_dfs(MemoryNode *current, void (*const for_each)(MemoryNode const
     while (true) {                                                              \
         next = current;                                                         \
         current = previous;                                                     \
-        if (current == NULL)                                                    \
+        if (!current)                                                           \
             break;                                                              \
                                                                                 \
         const uint16_t preNeighbours = memoryNode_get_neighbour_count(current); \
@@ -283,41 +276,41 @@ void memoryPool_dfs(MemoryNode *current, void (*const for_each)(MemoryNode const
         memoryNode_setNeighbour(current, next, 0);                              \
     }
 
-#define FORWARD                                                                    \
-    /*                                                                           \
-     * Move forward till there is a node with more than one neighbour.           \
-     * If no such node is found, back off.                                       \
-     * Invariant: The current node refers to a node that has only one neighbour. \
-     */ \
-    while (true) {                                                                 \
-        next = memoryNode_getNeighbour(current, 0);                                \
-        if (next == NULL || memoryNode_is_marked(next)) {                          \
-            BACK_OFF                                                               \
-            break;                                                                 \
-        }                                                                          \
-                                                                                   \
-        memoryNode_set_is_marked(next, true);                                      \
-        if (for_each != NULL)                                                      \
-            for_each(next);                                                        \
-                                                                                   \
-        const int neighbours = memoryNode_get_neighbour_count(next);               \
-        if (neighbours == 0) {                                                     \
-            BACK_OFF                                                               \
-            break;                                                                 \
-        }                                                                          \
-                                                                                   \
-        memoryNode_setNeighbour(current, previous, 0);                             \
-        previous = current;                                                        \
-        current = next;                                                            \
-        if (neighbours != 1) {                                                     \
-            break;                                                                 \
-        }                                                                          \
+#define FORWARD                                                                 \
+    /*                                                                          \
+     * Move forward till there is a node with more than one neighbour.          \
+     * If no such node is found, back off.                                      \
+     * Invariant: The current node refers to a node that has only one neighbour.\
+     */                                                                         \
+    while (true) {                                                              \
+        next = memoryNode_getNeighbour(current, 0);                             \
+        if (!next || memoryNode_is_marked(next)) {                              \
+            BACK_OFF                                                            \
+            break;                                                              \
+        }                                                                       \
+                                                                                \
+        memoryNode_set_is_marked(next, true);                                   \
+        if (for_each)                                                           \
+            for_each(next);                                                     \
+                                                                                \
+        const int neighbours = memoryNode_get_neighbour_count(next);            \
+        if (neighbours == 0) {                                                  \
+            BACK_OFF                                                            \
+            break;                                                              \
+        }                                                                       \
+                                                                                \
+        memoryNode_setNeighbour(current, previous, 0);                          \
+        previous = current;                                                     \
+        current = next;                                                         \
+        if (neighbours >= 2) {                                                  \
+            break;                                                              \
+        }                                                                       \
     }
 
-    if (current == NULL || memoryNode_is_marked(current))
+    if (!current || memoryNode_is_marked(current))
         return;
 
-    if (for_each != NULL)
+    if (for_each)
         for_each(current);
 
     memoryNode_set_is_marked(current, true);
@@ -338,7 +331,7 @@ void memoryPool_dfs(MemoryNode *current, void (*const for_each)(MemoryNode const
      */
     while (current != NULL) {
         const uint16_t neighbours = memoryNode_get_neighbour_count(current);
-        assert(neighbours > 1);
+        assert(neighbours >= 2);
 
         const uint16_t counter = memoryNode_get_counter(current);
         if (counter == neighbours) {
@@ -348,16 +341,16 @@ void memoryPool_dfs(MemoryNode *current, void (*const for_each)(MemoryNode const
         }
 
         next = memoryNode_getNeighbour(current, counter);
-        if (next == NULL || memoryNode_is_marked(next)) {
+        if (!next || memoryNode_is_marked(next)) {
             memoryNode_inc_counter(current);
             continue;
         }
 
         memoryNode_set_is_marked(next, true);
-        if (for_each != NULL)
+        if (for_each)
             for_each(next);
 
-        const int next_neighbours = memoryNode_get_neighbour_count(next);
+        const uint16_t next_neighbours = memoryNode_get_neighbour_count(next);
         if (next_neighbours == 0) {
             memoryNode_inc_counter(current);
             continue;
@@ -367,7 +360,7 @@ void memoryPool_dfs(MemoryNode *current, void (*const for_each)(MemoryNode const
         previous = current;
         current = next;
 
-        if (next_neighbours > 1)
+        if (next_neighbours >= 2)
             continue;
 
         FORWARD
