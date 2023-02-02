@@ -266,8 +266,8 @@ static void test_collected_nodes_single() {
     memoryPool_add_root_node(&pool, node2);
     memoryPool_gc_mark_and_sweep(&pool);
     assert(all_same(0));
-    free_out();
     memoryPool_free(&pool);
+    free_out();
 }
 
 
