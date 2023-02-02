@@ -34,6 +34,11 @@ static uint16_t memoryPoolNode_get_free_space(MemoryPoolNode const *const memory
     return extract_top_bits(node);
 }
 
+static uint16_t memoryPoolNode_set_free_space(MemoryPoolNode * const memoryPoolNode, const uint16_t freeSpace) {
+    MemoryPoolNode *const node = memoryPoolNode->next;
+    memoryPoolNode->next = set_top_bits(node, freeSpace);
+}
+
 static bool memoryPoolNode_is_free(MemoryPoolNode const *const memoryPoolNode) {
     MemoryPoolNode *const node = memoryPoolNode->next;
     return extract_lowest_bit(node);
@@ -213,6 +218,7 @@ MemoryNode *memoryPool_alloc(MemoryPool *const memoryPool, const size_t data_siz
         void *const location = (char *) space + total_size;
         MemoryPoolNode *next = memoryPoolNode_new(location, memoryPoolNode_get_next(head), remaining_space - sizeof(MemoryPoolNode), true);
         memoryPoolNode_set_next(head, next);
+        memoryPoolNode_set_free_space(head, total_size);
     }
 
 
