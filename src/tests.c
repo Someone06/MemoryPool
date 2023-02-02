@@ -237,6 +237,40 @@ void test_dfs_split_path() {
     memoryPool_free(&pool);
 }
 
+void free_fn(void* data) {
+    **(uint64_t**) data = 1;
+}
+
+void test_free_nodes_single() {
+    MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE, free_fn);
+    init_out(1);
+    MemoryNode *const node = memoryPool_alloc(&pool, sizeof(uint64_t*), 0);
+    *(uint64_t **) memoryNode_get_data(node) = &data[0];
+    memoryPool_free(&pool);
+    assert(all_same(1));
+    free_out();
+}
+
+void test_collected_nodes_single() {
+    MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE, free_fn);
+    init_out(1);
+    MemoryNode *const node = memoryPool_alloc(&pool, sizeof(uint64_t*), 0);
+    *(uint64_t **) memoryNode_get_data(node) = &data[0];
+    memoryPool_gc_mark_and_sweep(&pool);
+    assert(all_same(1));
+    free_out();
+
+    init_out(1);
+    MemoryNode *const node2 = memoryPool_alloc(&pool, sizeof(uint64_t*), 0);
+    *(uint64_t **) memoryNode_get_data(node2) = &data[0];
+    memoryPool_add_root_node(&pool, node2);
+    memoryPool_gc_mark_and_sweep(&pool);
+    assert(all_same(0));
+    free_out();
+    memoryPool_free(&pool);
+}
+
+
 void run_tests() {
     test_alloc_pool();
     test_alloc_pool_2();
@@ -249,4 +283,6 @@ void run_tests() {
     test_dfs_bin_tree();
     test_dfs_single_node();
     test_dfs_split_path();
+    test_free_nodes_single();
+    test_collected_nodes_single();
 }
