@@ -5,17 +5,17 @@
 
 static const size_t DEFAULT_POOL_SIZE = 1ULL << 10;
 
-void test_alloc_pool() {
+static void test_alloc_pool() {
     MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE, NULL);
     memoryPool_free(&pool);
 }
 
-void test_alloc_pool_2() {
+static void test_alloc_pool_2() {
     MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE - 1, NULL);
     memoryPool_free(&pool);
 }
 
-void test_alloc_node() {
+static void test_alloc_node() {
     MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE, NULL);
     MemoryNode *const node = memoryPool_alloc(&pool, sizeof(uint64_t), 0);
     int *const data = memoryNode_get_data(node);
@@ -23,7 +23,7 @@ void test_alloc_node() {
     memoryPool_free(&pool);
 }
 
-void test_alloc_multiple() {
+static void test_alloc_multiple() {
     MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE, NULL);
 
     MemoryNode *const node = memoryPool_alloc(&pool, sizeof(uint64_t), 0);
@@ -41,7 +41,7 @@ void test_alloc_multiple() {
     memoryPool_free(&pool);
 }
 
-void test_add_to_root_set() {
+static void test_add_to_root_set() {
     MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE, NULL);
     MemoryNode *const node = memoryPool_alloc(&pool, sizeof(uint64_t), 0);
     int *const data = memoryNode_get_data(node);
@@ -51,7 +51,7 @@ void test_add_to_root_set() {
     memoryPool_free(&pool);
 }
 
-void test_set_neighbour() {
+static void test_set_neighbour() {
     MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE, NULL);
 
     MemoryNode *const node = memoryPool_alloc(&pool, sizeof(uint64_t), 1);
@@ -85,24 +85,24 @@ void test_set_neighbour() {
 uint64_t * data = NULL;
 size_t data_size = 0;
 
-void init_out(const size_t size) {
+static void init_out(const size_t size) {
     data = CALLOC(size, sizeof(uint64_t));
     data_size = size;
 }
 
-void free_out() {
+static void free_out() {
     FREE(data);
     data = NULL;
     data_size = 0;
 }
 
-void inc_out(MemoryNode const *node) {
+static void inc_out(MemoryNode const *node) {
     const uint64_t index = *(uint64_t *) memoryNode_get_data(node);
     assert(index >= 0 && index < data_size);
     ++data[index];
 }
 
-bool all_same(const int value) {
+static bool all_same(const int value) {
     for (int i = 0; i < data_size; ++i) {
         if (data[i] != value) {
             return false;
@@ -112,14 +112,14 @@ bool all_same(const int value) {
     return true;
 }
 
-void test_nodes_inc_by_one(MemoryNode *root, size_t count) {
+static void test_nodes_inc_by_one(MemoryNode *root, size_t count) {
     init_out(count);
     memoryPool_dfs(root, inc_out);
     assert(all_same(1));
     free_out();
 }
 
-void test_dfs_triangle() {
+static void test_dfs_triangle() {
     MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE, NULL);
 
     MemoryNode *const node1 = memoryPool_alloc(&pool, sizeof(uint64_t), 1);
@@ -139,7 +139,7 @@ void test_dfs_triangle() {
     memoryPool_free(&pool);
 }
 
-void test_dfs_list() {
+static void test_dfs_list() {
      MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE, NULL);
 
     MemoryNode *const node1 = memoryPool_alloc(&pool, sizeof(uint64_t), 1);
@@ -158,7 +158,7 @@ void test_dfs_list() {
     memoryPool_free(&pool);
 }
 
-void test_dfs_single_node() {
+static void test_dfs_single_node() {
      MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE, NULL);
 
     MemoryNode *const node1 = memoryPool_alloc(&pool, sizeof(uint64_t), 0);
@@ -168,7 +168,7 @@ void test_dfs_single_node() {
     memoryPool_free(&pool);
 }
 
-void test_dfs_bin_tree() {
+static void test_dfs_bin_tree() {
      MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE, NULL);
 
     MemoryNode *const node1 = memoryPool_alloc(&pool, sizeof(uint64_t), 2);
@@ -204,7 +204,7 @@ void test_dfs_bin_tree() {
     memoryPool_free(&pool);
 }
 
-void test_dfs_split_path() {
+static void test_dfs_split_path() {
     MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE, NULL);
 
     MemoryNode *const node1 = memoryPool_alloc(&pool, sizeof(uint64_t), 2);
@@ -237,11 +237,11 @@ void test_dfs_split_path() {
     memoryPool_free(&pool);
 }
 
-void free_fn(void* data) {
+static void free_fn(void* data) {
     **(uint64_t**) data = 1;
 }
 
-void test_free_nodes_single() {
+static void test_free_nodes_single() {
     MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE, free_fn);
     init_out(1);
     MemoryNode *const node = memoryPool_alloc(&pool, sizeof(uint64_t*), 0);
@@ -251,7 +251,7 @@ void test_free_nodes_single() {
     free_out();
 }
 
-void test_collected_nodes_single() {
+static void test_collected_nodes_single() {
     MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE, free_fn);
     init_out(1);
     MemoryNode *const node = memoryPool_alloc(&pool, sizeof(uint64_t*), 0);
