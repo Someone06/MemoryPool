@@ -126,7 +126,7 @@ void *memoryNode_get_data(MemoryNode const *const memoryNode) {
 
 // ---------- Memory Pool ----------
 static const size_t DEFAULT_ROOT_SET_SIZE = 8;
-static const size_t MemoryPoolNode_MaxMemoryPerNode = (1ULL << 16) - 1;
+static const size_t MemoryPoolNode_MaxMemoryPerNode = ((1ULL << 16) - 1) & ~7;
 
 MemoryPool memory_pool_new(const size_t pool_size, const FreeFn freeFn) {
     assert(pool_size >= sizeof(MemoryPoolNode));
