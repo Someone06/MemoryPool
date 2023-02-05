@@ -188,7 +188,12 @@ void memoryPool_free(MemoryPool *const memoryPool) {
     memset(memoryPool, 0, sizeof(MemoryPool));
 }
 
-MemoryNode *memoryPool_alloc(MemoryPool *const memoryPool, const size_t data_size, const size_t neighbours) {
+static size_t align_8(const size_t size) {
+    return (size + 7) & ~7;
+}
+
+MemoryNode *memoryPool_alloc(MemoryPool *const memoryPool, size_t data_size, const size_t neighbours) {
+    data_size = align_8(data_size);
     const size_t memoryNode_size = sizeof(MemoryNode *) * (neighbours == 0 ? 1 : neighbours);
     const size_t total_size = memoryNode_size + data_size;
     assert(total_size < 1ULL << 16);
