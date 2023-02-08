@@ -35,8 +35,12 @@ static void test_alloc_multiple() {
     *data2 = 36;
 
     MemoryNode *const node3 = memoryPool_alloc(&pool, sizeof(uint64_t), 0);
+    int *const data3 = memoryNode_get_data(node3);
+    *data3 = 1337;
+
     assert(*data == 42);
     assert(*data2 == 36);
+    assert(*data3 == 1337);
 
     memoryPool_free(&pool);
 }
