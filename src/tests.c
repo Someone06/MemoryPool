@@ -270,6 +270,52 @@ static void test_collected_nodes_single() {
     free_out();
 }
 
+static void test_create_large_memory_pool() {
+    MemoryPool pool = memory_pool_new(1ULL << 20, NULL);
+    memoryPool_free(&pool);
+}
+
+static void test_alloc_odd_size_data() {
+    MemoryPool pool = memory_pool_new((1ULL << 20) - 7, free_fn);
+
+    int counter = 0;
+    for(int i = 1; i < 77; i += 17) ++counter;
+    init_out(counter);
+
+    counter = 0;
+    MemoryNode * next = NULL;
+    for(int i = 1; i < 77; i += 17) {
+       MemoryNode * node = memoryPool_alloc(&pool, i + sizeof(uint64_t*), 1);
+       *(uint64_t **) memoryNode_get_data(node) = &data[counter];
+       memoryNode_setNeighbour(node, next, 0);
+       next = node;
+       ++counter;
+    }
+
+    memoryPool_gc_mark_and_sweep(&pool);
+    assert(all_same(1));
+    memoryPool_free(&pool);
+    free_out();
+}
+
+static void test_many_root_nodes() {
+    MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE, free_fn);
+
+    init_out(10);
+    MemoryNode const * next = NULL;
+    for(int i = 0; i < 10; ++i) {
+        MemoryNode * node = memoryPool_alloc(&pool, sizeof(uint64_t*), 1);
+        *(uint64_t **) memoryNode_get_data(node) = &data[i];
+        memoryNode_setNeighbour(node, next, 0);
+        memoryPool_add_root_node(&pool, node);
+        next = node;
+    }
+
+    memoryPool_gc_mark_and_sweep(&pool);
+    assert(all_same(0));
+    memoryPool_free(&pool);
+    free_out();
+}
 
 void run_tests() {
     test_alloc_pool();
@@ -285,4 +331,7 @@ void run_tests() {
     test_dfs_split_path();
     test_free_nodes_single();
     test_collected_nodes_single();
+    test_create_large_memory_pool();
+    test_alloc_odd_size_data();
+    test_many_root_nodes();
 }
