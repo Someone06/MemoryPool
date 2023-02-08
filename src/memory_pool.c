@@ -225,7 +225,7 @@ MemoryNode *memoryPool_alloc(MemoryPool *const memoryPool, size_t data_size, con
 
 bool memoryPool_add_root_node(MemoryPool *const memoryPool, MemoryNode *const memoryNode) {
     if (memoryPool->rootSetSize == memoryPool->rootSetCapacity) {
-        MemoryNode ** const newSet = REALLOC(memoryPool->rootSet, memoryPool->rootSetCapacity, memoryPool->rootSetCapacity * sizeof(MemoryNode *) * 2);
+        MemoryNode ** const newSet = REALLOC(memoryPool->rootSet, memoryPool->rootSetCapacity * PTR_SIZE , memoryPool->rootSetCapacity * PTR_SIZE * 2);
         if (!newSet)
             return false;
 
