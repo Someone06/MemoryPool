@@ -208,6 +208,32 @@ static void test_dfs_bin_tree() {
     memoryPool_free(&pool);
 }
 
+static void test_dfs_split() {
+    MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE, NULL);
+
+    MemoryNode *const node1 = memoryPool_alloc(&pool, sizeof(uint64_t), 4);
+    *(uint64_t *) memoryNode_get_data(node1) = 0;
+
+    MemoryNode *const node2 = memoryPool_alloc(&pool, sizeof(uint64_t), 2);
+    *(uint64_t *) memoryNode_get_data(node2) = 1;
+
+    MemoryNode *const node3 = memoryPool_alloc(&pool, sizeof(uint64_t), 2);
+    *(uint64_t *) memoryNode_get_data(node3) = 2;
+
+    memoryNode_setNeighbour(node1, node2, 1);
+    memoryNode_setNeighbour(node1, node3, 2);
+    memoryNode_setNeighbour(node3, node1, 1);
+
+    test_nodes_inc_by_one(node1, 3);
+    memoryPool_free(&pool);
+}
+
+static void test_dfs_empty() {
+    MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE, NULL);
+    test_nodes_inc_by_one(NULL, 0);
+    memoryPool_free(&pool);
+}
+
 static void test_dfs_split_path() {
     MemoryPool pool = memory_pool_new(DEFAULT_POOL_SIZE, NULL);
 
@@ -332,6 +358,8 @@ void run_tests() {
     test_dfs_list();
     test_dfs_bin_tree();
     test_dfs_single_node();
+    test_dfs_split();
+    test_dfs_empty();
     test_dfs_split_path();
     test_free_nodes_single();
     test_collected_nodes_single();
