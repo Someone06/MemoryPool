@@ -1,6 +1,10 @@
 #ifndef DFS_MEMORY_POOL_H
 #define DFS_MEMORY_POOL_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -62,4 +66,9 @@ void memoryPool_gc_mark_and_sweep(MemoryPool *memoryPool);
 
 // Only intended to be used for testing!
 void memoryPool_dfs(MemoryNode *current, void (*for_each)(MemoryNode const *));
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif
