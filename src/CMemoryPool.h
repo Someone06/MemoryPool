@@ -42,12 +42,21 @@ private:
     explicit MemoryNode(MemoryPoolImplementationDetails::MemoryNode& memoryNode) : node {memoryNode} {}
 
     MemoryNode(MemoryPoolImplementationDetails::MemoryNode& memoryNode, T&& initial_value) :node{memoryNode} {
-         auto data = MemoryPoolImplementationDetails::memoryNode_get_data(&node);
-         new(data) T(initial_value);
+         const auto data = MemoryPoolImplementationDetails::memoryNode_get_data(&node);
+         const auto chars = static_cast<char*>(data);
+         new(chars + offset<T>(chars)) T(initial_value);
     }
 
     [[nodiscard]] MemoryPoolImplementationDetails::MemoryNode&  get_node() const noexcept {
          return node;
+    }
+
+    template<typename U>
+    static size_t offset(const char * const buffer) {
+        const auto alignment = alignof(U);
+        const auto numeric = reinterpret_cast<std::uintptr_t>(buffer);
+        const auto modulo = numeric % alignment;
+        return modulo == 0 ? 0 : alignment - modulo;
     }
 
     MemoryPoolImplementationDetails::MemoryNode& node;
@@ -74,7 +83,7 @@ public:
    };
 
    MemoryNode<T> alloc(T&& value, const std::size_t neighbours) {
-       const auto node = MemoryPoolImplementationDetails::memoryPool_alloc(&pool, sizeof(T), neighbours);
+       const auto node = MemoryPoolImplementationDetails::memoryPool_alloc(&pool, sizeof(T) + alignof(T), neighbours);
        if(node == nullptr)
            throw std::bad_alloc();
 
