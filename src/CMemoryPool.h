@@ -52,7 +52,7 @@ private:
     }
 
     template<typename U>
-    static size_t offset(const char * const buffer) {
+    static size_t offset(const char * const buffer) noexcept {
         const auto alignment = alignof(U);
         const auto numeric = reinterpret_cast<std::uintptr_t>(buffer);
         const auto modulo = numeric % alignment;
