@@ -29,7 +29,7 @@ public:
     void set_neighbour(const MemoryNode& neighbour, std::uint16_t index) {
            const auto count = this->get_neighbour_count();
            if(index >= count) throw std::range_error("Index out of range");
-           MemoryPoolImplementationDetails::memoryNode_setNeighbour(node, neighbour->node, index);
+           MemoryPoolImplementationDetails::memoryNode_setNeighbour(&node, &neighbour.node, index);
     }
 
     [[nodiscard]] T& get_data() const noexcept {
