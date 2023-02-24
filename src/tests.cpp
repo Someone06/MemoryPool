@@ -3,10 +3,12 @@
 #include "CMemoryPool.h"
 
 using ::testing::Mock;
+using ::testing::Test;
+using ::testing::NiceMock;
 
 static const size_t DEFAULT_POOL_SIZE = 1ULL << 10;
 
-struct DetectDestructorCall final {
+struct DetectDestructorCall {
     MOCK_METHOD(void, die, ());
     ~DetectDestructorCall() noexcept { die(); }
 };
@@ -14,6 +16,14 @@ struct DetectDestructorCall final {
 class Handle final {
 public:
     explicit Handle(const bool shouldBeDestroyed = true) {
+        // If a handle is not garbage collected, then it will be destroyed when
+        // the MemoryPool is destroyed. That causes an uninteresting call to
+        // die() which GMock warns about by default. By using a NiceMock, that
+        // false warning is silenced.
+        destructorCall = std::unique_ptr<DetectDestructorCall>(
+                shouldBeDestroyed ? new DetectDestructorCall{}
+                                  : new NiceMock<DetectDestructorCall>{});
+
         EXPECT_CALL(*destructorCall.get(), die()).Times(shouldBeDestroyed);
     }
 
@@ -22,7 +32,7 @@ public:
     }
 
 private:
-    std::unique_ptr<DetectDestructorCall> destructorCall = std::make_unique<DetectDestructorCall>();
+    std::unique_ptr<DetectDestructorCall> destructorCall;
 };
 
 class DetectDestructionPool final {
@@ -38,14 +48,10 @@ public:
         return static_cast<int>(handles.size()) - 1;
     }
 
-    void make_neighbours(const int from, const int to, const int index) {
+    void make_neighbours(const int from, const int to, const int index = 0) {
         auto &f = std::get<0>(handles.at(from));
         const auto &t = std::get<0>(handles.at(to));
         f.set_neighbour(t, index);
-    }
-
-    void addToRootSet(const int node) {
-        pool.add_root_node(std::get<0>(handles.at(node)));
     }
 
     void gc_and_verify() {
@@ -59,14 +65,27 @@ private:
     std::vector<std::pair<MemoryNode<Handle>, DetectDestructorCall *>> handles{};
 };
 
-TEST(CMemoryPoolTest, isCollected) {
-    DetectDestructionPool pool{};
+class DestructionTest : public Test {
+protected:
+    DetectDestructionPool pool {};
+};
+
+TEST_F(DestructionTest, isCollected) {
     pool.add_handle();
     pool.gc_and_verify();
 }
 
-TEST(CMemoryPoolTest, rootSetNotCollected) {
-    DetectDestructionPool pool{};
+TEST_F(DestructionTest, triangleIsCollected) {
+    pool.add_handle(1);
+    pool.add_handle(1);
+    pool.add_handle(1);
+    pool.make_neighbours(0, 1);
+    pool.make_neighbours(1, 2);
+    pool.make_neighbours(2, 0);
+    pool.gc_and_verify();
+}
+
+TEST_F(DestructionTest, rootSetNotCollected) {
     pool.add_handle(0, false, true);
     pool.gc_and_verify();
 }
