@@ -92,7 +92,7 @@ public:
    }
 
    void add_root_node(const MemoryNode<T>& node) {
-      const auto success = MemoryPoolImplementationDetails::memoryPool_add_root_node(&pool, node.get_node());
+      const auto success = MemoryPoolImplementationDetails::memoryPool_add_root_node(&pool, &node.get_node());
       if(!success)
            throw std::runtime_error("Failed to add MemoryNode to root set.");
    }
