@@ -44,7 +44,8 @@ private:
     MemoryNode(MemoryPoolImplementationDetails::MemoryNode& memoryNode, T&& initial_value) :node{memoryNode} {
          const auto data = MemoryPoolImplementationDetails::memoryNode_get_data(&node);
          const auto chars = static_cast<char*>(data);
-         new(chars + offset<T>(chars)) T(initial_value);
+         const auto location = chars + offset<T>(chars);
+         new(location) T(std::forward<T>(initial_value));
     }
 
     [[nodiscard]] MemoryPoolImplementationDetails::MemoryNode&  get_node() const noexcept {
@@ -87,7 +88,7 @@ public:
        if(node == nullptr)
            throw std::bad_alloc();
 
-       return MemoryNode {node, std::forward<T>(value)};
+       return MemoryNode<T> {*node, std::forward<T>(value)};
    }
 
    void add_root_node(const MemoryNode<T>& node) {
