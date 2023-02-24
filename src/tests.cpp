@@ -2,9 +2,8 @@
 
 #include "CMemoryPool.h"
 
-using ::testing::Mock;
-using ::testing::Test;
-using ::testing::NiceMock;
+using ::testing::Bool, ::testing::Combine, ::testing::Mock, ::testing::NiceMock,
+        ::testing::Range, ::testing::Test, ::testing::WithParamInterface;
 
 static const size_t DEFAULT_POOL_SIZE = 1ULL << 10;
 
@@ -37,9 +36,13 @@ private:
 
 class DetectDestructionPool final {
 public:
-    explicit DetectDestructionPool(const std::size_t poolSize = DEFAULT_POOL_SIZE) : pool{poolSize} {}
+    explicit DetectDestructionPool(
+            const std::size_t poolSize = DEFAULT_POOL_SIZE)
+        : pool{poolSize} {}
 
-    int add_handle(const int neighbourCount = 0, const bool shouldBeDestroyed = true, const bool addToRootSet = false) {
+    int add_handle(const int neighbourCount = 0,
+                   const bool shouldBeDestroyed = true,
+                   const bool addToRootSet = false) {
         Handle h{shouldBeDestroyed};
         const auto detectDestructorCall = h.get();
         const auto node = pool.alloc(std::move(h), neighbourCount);
@@ -54,8 +57,14 @@ public:
         f.set_neighbour(t, index);
     }
 
+    void add_root_node(const int node) {
+        pool.add_root_node(std::get<0>(handles.at(node)));
+    }
+
     void gc_and_verify() {
-        const auto verify = [](const auto p) { Mock::VerifyAndClearExpectations(std::get<1>(p)); };
+        const auto verify = [](const auto p) {
+            Mock::VerifyAndClearExpectations(std::get<1>(p));
+        };
         pool.gc_mark_and_sweep();
         std::for_each(handles.begin(), handles.end(), verify);
     }
@@ -67,7 +76,7 @@ private:
 
 class DestructionTest : public Test {
 protected:
-    DetectDestructionPool pool {};
+    DetectDestructionPool pool{};
 };
 
 TEST_F(DestructionTest, isCollected) {
@@ -75,17 +84,27 @@ TEST_F(DestructionTest, isCollected) {
     pool.gc_and_verify();
 }
 
-TEST_F(DestructionTest, triangleIsCollected) {
-    pool.add_handle(1);
-    pool.add_handle(1);
-    pool.add_handle(1);
-    pool.make_neighbours(0, 1);
-    pool.make_neighbours(1, 2);
-    pool.make_neighbours(2, 0);
-    pool.gc_and_verify();
-}
-
 TEST_F(DestructionTest, rootSetNotCollected) {
     pool.add_handle(0, false, true);
     pool.gc_and_verify();
 }
+
+class ParameterizedDestructionTest
+    : public DestructionTest,
+      public WithParamInterface<std::tuple<int, bool>> {};
+
+TEST_P(ParameterizedDestructionTest, cicleIsCollected) {
+    const auto [size, isRooted] = GetParam();
+    for (int i = 0; i < size; ++i)
+        pool.add_handle(1, !isRooted);
+
+    for (int i = 0; i < size; ++i)
+        pool.make_neighbours(i, (i + 1) % size);
+
+    if(isRooted) pool.add_root_node(0);
+    pool.gc_and_verify();
+}
+
+INSTANTIATE_TEST_SUITE_P(range1To5,
+                         ParameterizedDestructionTest,
+                         Combine(Range(1, 5), Bool()));
