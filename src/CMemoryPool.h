@@ -94,20 +94,14 @@ public:
    };
 
    MemoryNode<T> alloc(const std::size_t neighbours, T&& value) {
-       const auto node = MemoryPoolImplementationDetails::memoryPool_alloc(&pool, sizeof(T) + alignof(T), neighbours);
-       if(node == nullptr)
-           throw std::bad_alloc();
-
-       return MemoryNode<T> {*node, std::forward<T>(value)};
+       auto& node = allocNode(neighbours);
+       return MemoryNode<T> {node, std::forward<T>(value)};
    }
 
    template<typename... Args>
    MemoryNode<T> alloc_emplace(const std::size_t neighbours, Args&&... args) {
-       const auto node = MemoryPoolImplementationDetails::memoryPool_alloc(&pool, sizeof(T) + alignof(T), neighbours);
-       if(node == nullptr)
-           throw std::bad_alloc();
-
-       return MemoryNode<T> {*node, std::forward<Args>(args)...};
+       auto& node = allocNode(neighbours);
+       return MemoryNode<T> {node, std::forward<Args>(args)...};
    }
 
    void add_root_node(const MemoryNode<T>& node) {
@@ -121,6 +115,14 @@ public:
    }
 
 private:
+    MemoryPoolImplementationDetails::MemoryNode& allocNode(const std::size_t neighbours) {
+      const auto node = MemoryPoolImplementationDetails::memoryPool_alloc(&pool, sizeof(T) + alignof(T), neighbours);
+       if(node == nullptr)
+           throw std::bad_alloc();
+
+       return *node;
+    }
+
     MemoryPoolImplementationDetails::MemoryPool pool;
 };
 
