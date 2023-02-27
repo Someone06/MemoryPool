@@ -43,9 +43,8 @@ public:
     int add_handle(const int neighbourCount = 0,
                    const bool shouldBeDestroyed = true,
                    const bool addToRootSet = false) {
-        Handle h{shouldBeDestroyed};
-        const auto detectDestructorCall = h.get();
-        const auto node = pool.alloc(std::move(h), neighbourCount);
+        const auto node = pool.alloc(Handle{shouldBeDestroyed}, neighbourCount);
+        const auto detectDestructorCall = node.get_data().get();
         if (addToRootSet) pool.add_root_node(node);
         handles.emplace_back(node, detectDestructorCall);
         return static_cast<int>(handles.size()) - 1;
