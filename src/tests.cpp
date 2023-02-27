@@ -43,7 +43,7 @@ public:
     int add_handle(const int neighbourCount = 0,
                    const bool shouldBeDestroyed = true,
                    const bool addToRootSet = false) {
-        const auto node = pool.alloc(Handle{shouldBeDestroyed}, neighbourCount);
+        const auto node = pool.alloc(neighbourCount, Handle{shouldBeDestroyed});
         const auto detectDestructorCall = node.get_data().get();
         if (addToRootSet) pool.add_root_node(node);
         handles.emplace_back(node, detectDestructorCall);
