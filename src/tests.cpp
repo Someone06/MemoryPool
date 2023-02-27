@@ -40,14 +40,24 @@ public:
             const std::size_t poolSize = DEFAULT_POOL_SIZE)
         : pool{poolSize} {}
 
-    int add_handle(const int neighbourCount = 0,
+    int alloc_handle(const int neighbourCount = 0,
                    const bool shouldBeDestroyed = true,
                    const bool addToRootSet = false) {
-        const auto node = pool.alloc(neighbourCount, Handle{shouldBeDestroyed});
-        const auto detectDestructorCall = node.get_data().get();
-        if (addToRootSet) pool.add_root_node(node);
-        handles.emplace_back(node, detectDestructorCall);
-        return static_cast<int>(handles.size()) - 1;
+        const auto insert = [&](){
+            return pool.alloc(neighbourCount, Handle{shouldBeDestroyed});
+        };
+
+        return add_handle(insert, addToRootSet);
+    }
+
+    int emplace_handle(const int neighbourCount = 0,
+                   const bool shouldBeDestroyed = true,
+                   const bool addToRootSet = false) {
+        const auto emplace = [&](){
+            return pool.alloc_emplace(neighbourCount, shouldBeDestroyed);
+        };
+
+        return add_handle(emplace, addToRootSet);
     }
 
     void make_neighbours(const int from, const int to, const int index = 0) {
@@ -69,6 +79,15 @@ public:
     }
 
 private:
+    int add_handle(const std::function<MemoryNode<Handle>()>& insertion,
+        const bool addToRootSet) {
+        const auto node = insertion();
+        const auto detectDestructorCall = node.get_data().get();
+        if (addToRootSet) pool.add_root_node(node);
+        handles.emplace_back(node, detectDestructorCall);
+        return static_cast<int>(handles.size()) - 1;
+    }
+
     MemoryPool<Handle> pool;
     std::vector<std::pair<MemoryNode<Handle>, DetectDestructorCall *>> handles{};
 };
@@ -79,12 +98,14 @@ protected:
 };
 
 TEST_F(DestructionTest, isCollected) {
-    pool.add_handle();
+    pool.alloc_handle();
+    pool.emplace_handle();
     pool.gc_and_verify();
 }
 
 TEST_F(DestructionTest, rootSetNotCollected) {
-    pool.add_handle(0, false, true);
+    pool.alloc_handle(0, false, true);
+    pool.emplace_handle(0, false, true);
     pool.gc_and_verify();
 }
 
@@ -95,7 +116,10 @@ class ParameterizedDestructionTest
 TEST_P(ParameterizedDestructionTest, cicleIsCollected) {
     const auto [size, isRooted] = GetParam();
     for (int i = 0; i < size; ++i)
-        pool.add_handle(1, !isRooted);
+        if(i % 2)
+            pool.alloc_handle(1, !isRooted);
+        else
+            pool.emplace_handle(1, !isRooted);
 
     for (int i = 0; i < size; ++i)
         pool.make_neighbours(i, (i + 1) % size);
